@@ -1,6 +1,7 @@
+from typing import List
 from DataProcessor import DataProcessor
 from Plotter import Plotter
-import os, argparse
+import os, argparse, re
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Plotter")
@@ -10,51 +11,54 @@ if __name__ == '__main__':
     parser.add_argument(
         '--target_gib', type=int, required=False, help='', default=4)
     parser.add_argument(
-        '--read_pct', type=int, required=False, help='')
-    parser.add_argument(
-        '--write_pct', type=int, required=False, help='')
-    parser.add_argument(
-        '--scan_pct', type=int, required=False, help='')
-    parser.add_argument(
-        '--type', type=str, required=False, help='read, write, or scan')
+        '--type', type=str, required=True, help='read, write, scan, update-size, selectivity')
     
     # Parse the arguments
     args = parser.parse_args()
+    common_prefix = r'(join|merged)-' + f'{args.dram_gib}-{args.target_gib}-'
     
-    if args.read_pct is None or args.write_pct is None or args.scan_pct is None:
-        assert(args.type is not None)
-        if args.type == 'read':
-            args.read_pct = 100
-            args.write_pct = 0
-            args.scan_pct = 0
-        elif args.type == 'write':
-            args.read_pct = 0
-            args.write_pct = 100
-            args.scan_pct = 0
-        elif args.type == 'scan':
-            args.read_pct = 0
-            args.write_pct = 0
-            args.scan_pct = 100
-        else:
-            raise ValueError('Invalid type')
-    else:
-        if args.read_pct == 100 and args.write_pct == 0 and args.scan_pct == 0:
-            args.type = 'read'
-        elif args.read_pct == 0 and args.write_pct == 100 and args.scan_pct == 0:
-            args.type = 'write'
-        elif args.read_pct == 0 and args.write_pct == 0 and args.scan_pct == 100:
-            args.type = 'scan'
-        else:
-            args.type = f"custom-{args.read_pct}-{args.scan_pct}-{args.write_pct}"
+    pattern: str = ''
     
-    join_file_path = f'./join-{args.dram_gib}-{args.target_gib}-{args.read_pct}-{args.scan_pct}-{args.write_pct}/log_sum.csv'
-    merged_file_path = f'./merged-{args.dram_gib}-{args.target_gib}-{args.read_pct}-{args.scan_pct}-{args.write_pct}/log_sum.csv'
+    match args.type:
+        case 'read':
+            pattern = common_prefix + r'read$'
+        case 'write':
+            pattern = common_prefix + r'write$'
+        # case 'scan': # Throughput too low. Only plot aggregates.
+            # pattern = common_prefix + r'scan$'
+        case 'update-size':
+            pattern = common_prefix + r'write(-size\d+)?'
+        # case 'selectivity': # Too many stats. Only plot aggregates.
+        #     pattern = common_prefix + r'(read|write|scan)-sel\d+'
+        case _:
+            raise ValueError(f'Invalid type: {args.type}')
     
-    file_paths = [join_file_path, merged_file_path]
+    # iterate on all directories in the current directory
+    file_paths = []
+    for dir in os.listdir('.'):
+        matches = re.match(pattern, dir)
+        if matches is not None:
+            assert(os.path.isdir(dir))
+            for file in os.listdir(dir):
+                if file == 'log_sum.csv':
+                    file_paths.append(f'{dir}/{file}')
+                    break
+            else:
+                print(f'Skipping directory {dir} because it does not contain log_sum.csv.')
+    
+    print(file_paths)
+    
+    if (len(file_paths) == 0):
+        print(f'No directories found with pattern {pattern}. Exiting...')
+        exit(1)
+    elif (len(file_paths) > 6):
+        print(f'Max. 6 directories are supported. Exiting...')
+        exit(1)
+    
     processor = DataProcessor(file_paths)
     combined_data = processor.get_combined_data()
     
-    dir_name = f'{args.type}-{args.target_gib}g'
+    dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}'
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
     plotter = Plotter(combined_data, dir_name)
