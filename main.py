@@ -24,12 +24,12 @@ if __name__ == '__main__':
             pattern = common_prefix + r'read$'
         case 'write':
             pattern = common_prefix + r'write$'
-        # case 'scan': # Throughput too low. Only plot aggregates.
-            # pattern = common_prefix + r'scan$'
+        case 'scan': # Throughput too low. Only plot aggregates.
+            pattern = common_prefix + r'scan$'
         case 'update-size':
-            pattern = common_prefix + r'write(-size\d+)?'
-        # case 'selectivity': # Too many stats. Only plot aggregates.
-        #     pattern = common_prefix + r'(read|write|scan)-sel\d+'
+            pattern = common_prefix + r'write(-size\d+)?$'
+        case 'selectivity': # Too many stats. Only plot aggregates.
+            pattern = common_prefix + r'(read|write|scan)(-sel\d+)?$'
         case _:
             raise ValueError(f'Invalid type: {args.type}')
     
@@ -46,20 +46,25 @@ if __name__ == '__main__':
             else:
                 print(f'Skipping directory {dir} because it does not contain log_sum.csv.')
     
+    # TODO: Reorder file paths for selectivity
     print(file_paths)
+    dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}'
+    if not os.path.exists(dir_name):
+        os.mkdir(dir_name)
+    processor = DataProcessor(file_paths)
     
     if (len(file_paths) == 0):
         print(f'No directories found with pattern {pattern}. Exiting...')
         exit(1)
-    elif (len(file_paths) > 6):
-        print(f'Max. 6 directories are supported. Exiting...')
-        exit(1)
-    
-    processor = DataProcessor(file_paths)
-    combined_data = processor.get_combined_data()
-    
-    dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}'
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
-    plotter = Plotter(combined_data, dir_name)
-    plotter.plot_all_charts()
+        
+    if args.type != 'scan' and args.type != 'selectivity':
+        if (len(file_paths) > 6):
+            print(f'Max. 6 directories are supported. Exiting...')
+            exit(1)
+        combined_data = processor.get_combined_data()    
+        plotter = Plotter(combined_data, dir_name)
+        plotter.plot_all_charts()
+
+    agg_df = processor.get_agg()
+    plotter = Plotter(agg_df, dir_name)
+    plotter.plot_agg(args.type)
