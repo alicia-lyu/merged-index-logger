@@ -72,32 +72,34 @@ class SeriesPlotter:
     def plot_chart(self, y_columns: List[str], title: str, y_label: str, secondary_y: bool = False, trim_option: TrimOption = TrimOption.ADD) -> None:
         print(f'Plotting {title}')
         
+        # Check requirements for data
         if (len(y_columns) > 4):
             print("Max. 4 columns are supported. Exiting...")
             exit(1)
-        
         trim = False
         if len(y_columns) * self.combined_data.groupby(level='Source').ngroups > 6:
             print("Too many stats. Trimming...")
             trim = True
         
+        # Twinx for secondary y-axis
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
         if secondary_y and (not trim or trim_option != TrimOption.REMOVE_2):
             assert(len(y_columns) == 2)
             ax1_twinx: matplotlib.axes.Axes = ax1.twinx()
             ax2_twinx: matplotlib.axes.Axes = ax2.twinx()
         
-        source_index = -1
-        for key, grp in self.combined_data.groupby(level='Source'):
-            source_index += 1
+        data_gen = self.combined_data.groupby(level='Source')
+        for (key, grp), source_index in zip(data_gen, range(len(data_gen))):
+            # Plot the sum of all columns
             if trim and trim_option == TrimOption.ADD:
                 y = grp[y_columns[0]]
                 for i in range(1, len(y_columns)):
                     y += grp[y_columns[i]]
                 self.__plot_axis(ax1, ax2, grp['t'], y, f'{key}', source_index, 0)
                 continue
-                
+            # Plot each column
             for i, col in enumerate(y_columns):
+                # Skip trimmed columns
                 if trim and trim_option == TrimOption.REMOVE_1 and i == 0:
                     continue
                 elif trim and trim_option == TrimOption.REMOVE_2 and i == 1:
@@ -111,28 +113,22 @@ class SeriesPlotter:
                 else:
                     self.__plot_axis(ax1, ax2, grp['t'], grp[col], f'{key} - {col}', source_index, i)
         
-
-        for i in range(2):
-            ax = ax1 if i == 0 else ax2
+        # Set legends
+        for ax, ax_twinx in zip([ax1, ax2], [ax1_twinx, ax2_twinx]):
             matches = re.match(r'Chart (\d+): (.+)', title)
-            subtitle = matches.group(2) if i == 0 else f'After Stabilization'
+            subtitle = matches.group(2) if i == 0 else f'After Stabilization Point'
             ax.set_xlabel('Time Elapsed (seconds)')
             ax.set_ylabel(y_label)
             ax.set_title(subtitle)
             if secondary_y and (not trim or trim_option != TrimOption.REMOVE_2):
-                ax_twinx = ax1_twinx if i == 0 else ax2_twinx
                 ax_twinx.set_ylabel(y_columns[1])
                 lines, labels = ax.get_legend_handles_labels()
                 lines2, labels2 = ax_twinx.get_legend_handles_labels()
                 lines += lines2
                 labels += labels2
-                ax.legend(
-                    # lines, labels, loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0.
-                    )
+                ax.legend(lines, labels)
             else:
-                ax.legend(
-                    # loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0.
-                    )
+                ax.legend()
                 
         fig.suptitle(title)
         fig.tight_layout()
@@ -140,6 +136,5 @@ class SeriesPlotter:
     
     def plot_all_charts(self) -> None:
         self.plot_chart(['OLTP TX'], 'Chart 1: Transaction Throughput', 'TXs/s')
-        # self.plot_chart(['W MiB', 'R MiB'], 'Chart 2: W MiB, R MiB', 'MiB/s')
-        self.plot_chart(['SSDReads/TX', 'SSDWrites/TX'], 'Chart 3: IO per TX', 'Operations/TX')
-        self.plot_chart(['GHz', "Cycles/TX"], 'Chart 4: CPU Information', 'GHz', True, TrimOption.REMOVE_2)
+        self.plot_chart(['SSDReads/TX', 'SSDWrites/TX'], 'Chart 2: IO per TX', 'Operations/TX')
+        self.plot_chart(['GHz', "Cycles/TX"], 'Chart 3: CPU Information', 'GHz', True, TrimOption.REMOVE_2)

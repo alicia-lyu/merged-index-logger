@@ -1,6 +1,7 @@
 from typing import List
 from DataProcessor import DataProcessor
-from SeriesPlotter import Plotter
+from SeriesPlotter import SeriesPlotter
+from AggPlotter import AggPlotter
 import os, argparse, re
 
 if __name__ == '__main__':
@@ -46,7 +47,6 @@ if __name__ == '__main__':
             else:
                 print(f'Skipping directory {dir} because it does not contain log_sum.csv.')
     
-    # TODO: Reorder file paths for selectivity
     print(file_paths)
     dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}'
     if not os.path.exists(dir_name):
@@ -62,9 +62,9 @@ if __name__ == '__main__':
             print(f'Max. 6 directories are supported. Exiting...')
             exit(1)
         combined_data = processor.get_combined_data()    
-        plotter = Plotter(combined_data, dir_name)
+        plotter = SeriesPlotter(combined_data, dir_name)
         plotter.plot_all_charts()
 
     agg_df = processor.get_agg()
-    plotter = Plotter(agg_df, dir_name)
-    plotter.plot_agg(args.type)
+    plotter = AggPlotter(agg_df, dir_name, args.type)
+    plotter.plot_agg()
