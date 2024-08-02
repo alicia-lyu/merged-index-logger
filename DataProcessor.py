@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Callable, List, Tuple
 import os
 import numpy as np
-from Plotter import find_stabilization_point
+from SeriesPlotter import find_stabilization_point
 
 class DataProcessor:
     def __init__(self, file_paths: List[str]):

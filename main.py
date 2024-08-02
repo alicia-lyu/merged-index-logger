@@ -1,6 +1,6 @@
 from typing import List
 from DataProcessor import DataProcessor
-from Plotter import Plotter
+from SeriesPlotter import Plotter
 import os, argparse, re
 
 if __name__ == '__main__':
