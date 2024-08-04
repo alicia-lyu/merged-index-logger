@@ -2,3 +2,4 @@
 # ignore all directories
 *.tar.gz
 *.csv
+*.png
