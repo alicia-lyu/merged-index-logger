@@ -55,10 +55,12 @@ class SeriesPlotter:
         self.discarded_size = 60
         self.window_size = self.discarded_size // 6
         
-    def __plot_axis(self, ax1: matplotlib.axes.Axes, ax2: matplotlib.axes.Axes, x: pd.Series, y: pd.Series, label: str, source_index: int, col_index: int, loc: Locator = AutoLocator()) -> None:
+    def __plot_axis(self, ax1: matplotlib.axes.Axes, ax2: matplotlib.axes.Axes, x: pd.Series, y: pd.Series, label: str, source_index: int, col_index: int, loc: Locator = AutoLocator(), logical_min = 0, logical_max = float('inf')) -> None:
         stab_point, stab_phase_start = find_stabilization_point(self.discarded_size, self.window_size, y)
         # Plot smoothed line
         smoothed = savgol_filter(y, self.window_size // 2, 3)
+        smoothed = np.maximum(smoothed, np.full(smoothed.shape, logical_min))
+        smoothed = np.minimum(smoothed, np.full(smoothed.shape, logical_max))
         x = x.values
         ax1.yaxis.set_major_locator(loc)
         ax1.plot(x, smoothed, label=label, 
@@ -83,8 +85,9 @@ class SeriesPlotter:
         
         # Twinx for secondary y-axis
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        ax1_twinx = None
+        ax2_twinx = None
         if secondary_y and (not trim or trim_option != TrimOption.REMOVE_2):
-            assert(len(y_columns) == 2)
             ax1_twinx: matplotlib.axes.Axes = ax1.twinx()
             ax2_twinx: matplotlib.axes.Axes = ax2.twinx()
         
@@ -109,7 +112,7 @@ class SeriesPlotter:
                     self.__plot_axis(ax1_twinx, ax2_twinx, grp['t'], grp[col], f'{key} - {col}', source_index, i)
                 elif col == 'GHz':
                     print('Custom locator for GHz')
-                    self.__plot_axis(ax1, ax2, grp['t'], grp[col], f'{key} - {col}', source_index, i, MaxNLocator(integer=True))
+                    self.__plot_axis(ax1, ax2, grp['t'], grp[col], f'{key} - {col}', source_index, i, MaxNLocator(integer=True), logical_max=4)
                 else:
                     self.__plot_axis(ax1, ax2, grp['t'], grp[col], f'{key} - {col}', source_index, i)
         

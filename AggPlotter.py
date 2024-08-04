@@ -3,6 +3,7 @@ import numpy as np
 from typing import Callable, List, Tuple
 import re
 import matplotlib.pyplot as plt
+from adjustText import adjust_text
 
 class AggPlotter:
     def __init__(self, agg_data: pd.DataFrame, fig_dir: str, title: str) -> None:
@@ -69,88 +70,114 @@ class AggPlotter:
         
         return x_label_dir1, x_label_dir2
         
-    def __get_and_normalize_column(self, col: str) -> Tuple[pd.Series, pd.Series]:
-        col_data = self.agg_data[col]
+    def __get_and_normalize_column(self, col_data: pd.Series, col: str) -> Tuple[pd.Series, float, float]:
         if col == 'TXs/s' or col == 'Reads/TX' or col == 'Writes/TX':
             norm_col = np.log10(col_data + 1)
             min_val = 0
-            max_val = max(np.log10(col_data.max() + 1), 4)
+            max_val = max(norm_col.max(), 4)
             norm_col = (norm_col - min_val) / (max_val - min_val)
         elif col == 'GHz':
             min_val = 0
             max_val = 4
             norm_col = (col_data - min_val) / (max_val - min_val)
-        return [col_data, norm_col]
+        else:
+            raise ValueError("Unsupported column name for normalization")
+        return norm_col, min_val, max_val
+    
+    def __unnorm(self, norm_val: float, min_val: float, max_val: float, col: str) -> float:
+        val = norm_val * (max_val - min_val) + min_val
+        if col == 'TXs/s' or col == 'Reads/TX' or col == 'Writes/TX':
+            return 10 ** val - 1
+        else:
+            return val
+        
+    def __stats_representation(self, major_rep: Callable[..., str]) -> Callable[..., str]:
+        return lambda x : (f'{x:.2f}' if x < 100 else major_rep(x))
     
     def __get_stats_representation(self, col_data: pd.Series) -> Callable[..., str]:
         max_value = col_data.max()
         if max_value > 99999:
-            return lambda x: f'{x:.2e}'
+            major_rep = lambda x: f'{x:.2e}'
         elif max_value > 99:
-            return lambda x: f'{int(x):d}'
+            major_rep = lambda x: f'{int(x):d}'
         elif max_value > 0.1 or max_value == 0:
-            return lambda x: f'{x:.2f}'
+            major_rep = lambda x: f'{x:.2f}'
         else:
-            return lambda x: f'{x:.2e}'
+            major_rep = lambda x: f'{x:.2e}'
+        return self.__stats_representation(major_rep)
         
     def plot_agg(self) -> None:
         # Normalize the bar heights for the same column
         paths = self.agg_data.index
         x_label_dir1, x_label_dir2 = self.__reorganize_x_labels(paths)
+        keys = list(x_label_dir1.keys()) + list(x_label_dir2.keys())
+        sublabel_lists = list(x_label_dir1.values()) + list(x_label_dir2.values())
         M = len(x_label_dir1)
         N = len(list(x_label_dir1.values())[0])
         n = len(self.agg_data.columns)
         
         bar_width = 0.5
-        label_width = bar_width * (n + 1)
-        print(f'M: {M}, N: {N}, bar_width: {bar_width}, label_width: {label_width}')
+        # bar_locs = [i * 0.5 for i in range(M * 2)]
         
-        label_starts = np.arange(M) * label_width
+        fig, axes = plt.subplots(2, (n + 1) // 2, figsize=(2 * n * 1.5, (n + 1) // 2 * (N + 1)))
         
-        fig, (ax_up, ax_dn) = plt.subplots(2, 1, figsize=(M * label_width * 1.5, 6))
-        
-        ax_up.set_xticks(label_starts + (label_width - bar_width) / 2, labels=x_label_dir1.keys())
-        ax_dn.set_xticks(label_starts + (label_width - bar_width) / 2, labels=x_label_dir2.keys())
-        
-        i = 0
-        for col in self.agg_data.columns:
-            col_data, norm_col = self.__get_and_normalize_column(col)
+        axes = axes.flatten()
+
+        texts = []
+        for i_col, col in enumerate(self.agg_data.columns):
+            ax = axes[i_col]
+            ax.set_title(col)
+            # ax.set_xticks(bar_locs, keys)
+            
+            col_data = self.agg_data[col]
+            norm_col, min_val, max_val = self.__get_and_normalize_column(col_data, col)
+            # print(col_data, norm_col, min_val, max_val)
             stats_representation = self.__get_stats_representation(col_data)
             
-            if col == 'Reads/TX' or col == 'Writes/TX':
-                norm_col = -norm_col
-                va = 'top'
-            else:
-                va = 'bottom'
+            heights = [0 for _ in range(M * 2)]
             
-            for x_label_dir, ax in zip([x_label_dir1, x_label_dir2], [ax_up, ax_dn]):
-                heights = [0 for _ in range(M)]
-                for j in range(N):
-                    j_norm_col = [norm_col.iloc[x[j][0]] for x in x_label_dir.values()]
-                    bars = ax.bar(label_starts + i * bar_width * 0.5, j_norm_col, bar_width, bottom=heights, label=col, color=self.colors[j])
-                    for bar, value, k in zip(bars, x_label_dir.values(), range(M)):
-                        stat = col_data.iloc[value[j][0]]
-                        text = stats_representation(stat)
-                        if N > 1 and stat != 0:
-                            text = f'{value[j][1]}:\n' + text
+            for i_sublabel in range(N):
+                col_locs = [sublabel_list[i_sublabel][0] for sublabel_list in sublabel_lists]
+                sublabels = [sublabel_list[i_sublabel][1] for sublabel_list in sublabel_lists]
+                
+                sublabel = sublabels[0]
+                for i in range(1, M):
+                    assert(sublabel == sublabels[i])
+
+                bars = ax.bar(keys, norm_col.iloc[col_locs], bar_width, bottom=heights, color=self.colors[i_sublabel], label = sublabel)
+                
+                for bar, col_loc, sublabel, k in zip(bars, col_locs, sublabels, range(M * 2)):
+                    stat = col_data.iloc[col_loc]
+                    text = stats_representation(stat)
+                    if N > 1 and norm_col.iloc[col_loc] < 0.01:
+                        va = 'top'
+                        height = heights[k] + bar.get_height()
+                    else:
+                        va='center'
+                        height = heights[k] + bar.get_height() * 0.5
+                    if stat > 0.001 or N == 1:
                         t = ax.text(
-                            bar.get_x() + bar.get_width() / 2.0, 
-                            heights[k] + bar.get_height() * 0.5, 
+                            bar.get_x() + bar.get_width() * 0.5, 
+                            height, 
                             text, 
-                            ha='center', va='center', color = 'white', 
-                            fontsize='x-small', fontfamily='monospace', fontweight='bold')
-                        t.set_bbox(dict(facecolor=self.colors[j], alpha=0.5, edgecolor='none', pad=0.1))
-                    
-                    heights = [x + bar.get_height() for x, bar in zip(heights, bars)]
-                    
-                # Adding the text labels on each bar
-                for bar, value, k in zip(bars, col_data, range(M)):
-                    ax.text(bar.get_x() + bar.get_width() / 2.0, heights[k] * 1.2, f'{col}', ha='center', va=va)
-                i += 1
-        
-        for ax in [ax_up, ax_dn]:
-            ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+                            ha='center', va=va, color = 'white', 
+                            fontsize='small', fontfamily='monospace', fontweight='bold')
+                        t.set_bbox(dict(facecolor=self.colors[i_sublabel], alpha=0.5, edgecolor='none', pad=0.2))
+                        texts.append(t)
+                
+                heights = [x + bar.get_height() for x, bar in zip(heights, bars)]
             
+            ax.set_ylim(0)
+            y_ticks = np.linspace(min_val * N, max_val * N, N * 2)
+            y_labels = []
+            for y_tick in y_ticks:
+                y_label = self.__unnorm(y_tick, min_val, max_val, col)
+                y_labels.append(stats_representation(y_label))
+            ax.set_yticks(y_ticks, y_labels)
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles[::-1], labels[::-1])
+        
+        # adjust_text(texts, only_move={'points':'y', 'texts':'y'}, arrowprops=dict(arrowstyle='-', color='black'), force_points=0.1, lim=100)
         fig.suptitle(f'{self.title}')
         fig.tight_layout()
         fig.savefig(f'{self.fig_dir}/Aggregates.png', dpi=300)

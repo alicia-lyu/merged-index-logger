@@ -31,6 +31,8 @@ if __name__ == '__main__':
             pattern = common_prefix + r'write(-size\d+)?$'
         case 'selectivity': # Too many stats. Only plot aggregates.
             pattern = common_prefix + r'(read|write|scan)(-sel\d+)?$'
+        case 'included-columns':
+            pattern = common_prefix + r'(read|write|scan)(-col\d+)?$'
         case _:
             raise ValueError(f'Invalid type: {args.type}')
     
@@ -48,19 +50,17 @@ if __name__ == '__main__':
                 print(f'Skipping directory {dir} because it does not contain log_sum.csv.')
     
     print(file_paths)
-    dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}'
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
-    processor = DataProcessor(file_paths)
-    
     if (len(file_paths) == 0):
         print(f'No directories found with pattern {pattern}. Exiting...')
         exit(1)
         
-    if args.type != 'scan' and args.type != 'selectivity':
-        if (len(file_paths) > 6):
-            print(f'Max. 6 directories are supported. Exiting...')
-            exit(1)
+    dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}'
+    if not os.path.exists(dir_name):
+        os.mkdir(dir_name)
+    
+    processor = DataProcessor(file_paths)
+        
+    if args.type != 'scan' and args.type != 'selectivity' and args.type != 'included-columns' and len(file_paths) < 6:
         combined_data = processor.get_combined_data()    
         plotter = SeriesPlotter(combined_data, dir_name)
         plotter.plot_all_charts()
