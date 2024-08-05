@@ -13,6 +13,8 @@ if __name__ == '__main__':
         '--target_gib', type=int, required=False, help='', default=4)
     parser.add_argument(
         '--type', type=str, required=True, help='read, write, scan, update-size, selectivity')
+    parser.add_argument(
+        '--suffix', type=str, required=False, help='Suffix of the dir names', default='')
     
     # Parse the arguments
     args = parser.parse_args()
@@ -22,11 +24,13 @@ if __name__ == '__main__':
     
     match args.type:
         case 'read':
-            pattern = common_prefix + r'read$'
+            pattern = common_prefix + r'read' + args.suffix + r'$'
         case 'write':
-            pattern = common_prefix + r'write$'
+            pattern = common_prefix + r'write' + args.suffix + r'$'
         case 'scan': # Throughput too low. Only plot aggregates.
-            pattern = common_prefix + r'scan$'
+            pattern = common_prefix + r'scan' + args.suffix + r'$'
+        case 'all-tx':
+            pattern = common_prefix + r'(read|write|scan)' + args.suffix + r'$'
         case 'update-size':
             pattern = common_prefix + r'write(-size\d+)?$'
         case 'selectivity': # Too many stats. Only plot aggregates.
@@ -60,7 +64,7 @@ if __name__ == '__main__':
     
     processor = DataProcessor(file_paths)
         
-    if args.type != 'scan' and args.type != 'selectivity' and args.type != 'included-columns' and len(file_paths) < 6:
+    if args.type == 'read' or args.type == 'write' or args.type == 'update-size' and len(file_paths) < 6:
         combined_data = processor.get_combined_data()    
         plotter = SeriesPlotter(combined_data, dir_name)
         plotter.plot_all_charts()

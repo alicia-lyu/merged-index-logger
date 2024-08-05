@@ -11,19 +11,31 @@ class DataProcessor:
         self.__load_data()
 
     def __load_data(self) -> None:
+        print(f'Loading data from {len(self.file_paths)} files...')
         min_rows = float('inf')
+        files_to_remove = []
         for file in self.file_paths:
-            df = pd.read_csv(file)
+            try:
+                df = pd.read_csv(file)
+            except pd.errors.EmptyDataError:
+                print(f'Empty data in {file}. Skipping...')
+                files_to_remove.append(file)
+                continue
+            if len(df) < 50:
+                print(f'Not enough data in {file}. Skipping...')
+                files_to_remove.append(file)
+                continue
             for label, data in df.items():
                 df[label] = pd.to_numeric(data, errors='coerce')
             # Replace inf with NaN and drop rows containing NaN
             self.data_frames.append(df)
             min_rows = min(min_rows, len(df))
         
+        self.file_paths = [file for file in self.file_paths if file not in files_to_remove]
+        
         print(f'Minimum rows: {min_rows}')
-        for i in range(len(self.data_frames)):
-            self.data_frames[i] = self.data_frames[i].tail(min_rows) # discard the first few rows to make all dataframes have the same length
-            self.data_frames[i]['t'] = self.data_frames[i]['t'] - self.data_frames[i]['t'].iloc[0]
+        self.data_frames = [df.tail(min_rows) for df in self.data_frames]
+        self.data_frames = [df.assign(t=df['t'] - df['t'].iloc[0]) for df in self.data_frames]
 
     def get_combined_data(self) -> pd.DataFrame:
         combined_df = pd.concat(self.data_frames, keys=[os.path.basename(os.path.dirname(path)) for path in self.file_paths], names=['Source', 'Index'])

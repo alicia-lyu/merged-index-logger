@@ -10,6 +10,7 @@ plot-all:
 	python3 main.py --type=update-size
 	python3 main.py --type=selectivity
 	python3 main.py --type=included-columns
+	python3 plot_size.py
 
 all: plot-all tar-all
 
