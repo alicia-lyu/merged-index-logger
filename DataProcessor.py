@@ -26,24 +26,19 @@ class DataProcessor:
             self.data_frames[i]['t'] = self.data_frames[i]['t'] - self.data_frames[i]['t'].iloc[0]
 
     def get_combined_data(self) -> pd.DataFrame:
-        keys: List[str] = []
-        for path in self.file_paths:
-            dirname = os.path.dirname(path)
-            dirname = os.path.basename(dirname)
-            keys.append(dirname)
-            
-        combined_df = pd.concat(self.data_frames, keys=keys, names=['Source', 'Index'])
+        combined_df = pd.concat(self.data_frames, keys=[os.path.basename(os.path.dirname(path)) for path in self.file_paths], names=['Source', 'Index'])
         return combined_df
 
     def get_agg(self) -> pd.DataFrame:
         # Calculate 4 aggregates: TX throughput, Reads per TX, Writes per TX, CPU GHz
         data = {
             'TXs/s': [ find_stabilization_point(60, 10, df['OLTP TX'])[0] for df in self.data_frames ],
-            'Reads/TX': [ find_stabilization_point(60, 10, df['SSDReads/TX'])[0] for df in self.data_frames ],
-            'Writes/TX': [ find_stabilization_point(60, 10, df['SSDWrites/TX'])[0] for df in self.data_frames ],
+            'IO/TX': [ 
+                find_stabilization_point(60, 10, df['SSDReads/TX'])[0] + find_stabilization_point(60, 10, df['SSDWrites/TX'])[0] for df in self.data_frames ],
             'GHz': [ find_stabilization_point(60, 10, df['GHz'])[0] for df in self.data_frames ]
         }
         print(data)
-        agg_df = pd.DataFrame(data, index=[os.path.basename(os.path.dirname(path)) for path in self.file_paths])
+        agg_df = pd.DataFrame(data, 
+                              index=[os.path.basename(os.path.dirname(path)) for path in self.file_paths])
         agg_df.replace([np.nan], 0, inplace=True)
         return agg_df

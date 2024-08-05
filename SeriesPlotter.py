@@ -119,7 +119,7 @@ class SeriesPlotter:
         # Set legends
         for ax, ax_twinx in zip([ax1, ax2], [ax1_twinx, ax2_twinx]):
             matches = re.match(r'Chart (\d+): (.+)', title)
-            subtitle = matches.group(2) if i == 0 else f'After Stabilization Point'
+            subtitle = matches.group(2) if ax == ax1 else f'After Stabilization Point'
             ax.set_xlabel('Time Elapsed (seconds)')
             ax.set_ylabel(y_label)
             ax.set_title(subtitle)

@@ -71,7 +71,7 @@ class AggPlotter:
         return x_label_dir1, x_label_dir2
         
     def __get_and_normalize_column(self, col_data: pd.Series, col: str) -> Tuple[pd.Series, float, float]:
-        if col == 'TXs/s' or col == 'Reads/TX' or col == 'Writes/TX':
+        if col == 'TXs/s' or col == 'Reads/TX' or col == 'Writes/TX' or col == "IO/TX":
             norm_col = np.log10(col_data + 1)
             min_val = 0
             max_val = max(norm_col.max(), 4)
@@ -86,13 +86,13 @@ class AggPlotter:
     
     def __unnorm(self, norm_val: float, min_val: float, max_val: float, col: str) -> float:
         val = norm_val * (max_val - min_val) + min_val
-        if col == 'TXs/s' or col == 'Reads/TX' or col == 'Writes/TX':
+        if col == 'TXs/s' or col == 'Reads/TX' or col == 'Writes/TX' or col == "IO/TX":
             return 10 ** val - 1
         else:
             return val
         
     def __stats_representation(self, major_rep: Callable[..., str]) -> Callable[..., str]:
-        return lambda x : (f'{x:.2f}' if x < 100 else major_rep(x))
+        return major_rep
     
     def __get_stats_representation(self, col_data: pd.Series) -> Callable[..., str]:
         max_value = col_data.max()
@@ -168,7 +168,7 @@ class AggPlotter:
                 heights = [x + bar.get_height() for x, bar in zip(heights, bars)]
             
             ax.set_ylim(0)
-            y_ticks = np.linspace(min_val * N, max_val * N, N * 2)
+            y_ticks = ax.get_yticks()
             y_labels = []
             for y_tick in y_ticks:
                 y_label = self.__unnorm(y_tick, min_val, max_val, col)

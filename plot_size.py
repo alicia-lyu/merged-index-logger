@@ -34,7 +34,7 @@ def plot_scatters(ax: matplotlib.axes.Axes, size_df: pd.DataFrame, label: str, t
     # Plot
     scatter_stats = pd.DataFrame(scatter_stats, columns=['selectivity', 'included_columns', 'size'])
     print(scatter_stats)
-    y_offset = ((offset - 0.5) * 0.3)
+    y_offset = -((offset - 0.5) * 0.3)
     ax.scatter(scatter_stats['selectivity'], scatter_stats['included_columns'] + y_offset, scatter_stats['size'] * 1000, marker='o', label=label, color=colors[offset], alpha=0.5, edgecolors='none')
     ax.yaxis.set_major_locator(matplotlib.ticker.FixedLocator(scatter_stats['included_columns'].unique()))
     ax.set_yticklabels(["None", "All"])
@@ -44,7 +44,7 @@ def plot_scatters(ax: matplotlib.axes.Axes, size_df: pd.DataFrame, label: str, t
     print(xticks)
     ax.xaxis.set_major_locator(matplotlib.ticker.FixedLocator(xticks))
     for index, row in scatter_stats.iterrows():
-        ax.text(row['selectivity'], row['included_columns'] + y_offset, f'{row["size"]:.2f} GiB', color=colors[offset])
+        ax.text(row['selectivity'], row['included_columns'] + y_offset, f'{row["size"]:.2f}\nGiB', color=colors[offset], ha='left', va='center')
 
 
 def plot_both(ax: matplotlib.axes.Axes, join_size: pd.DataFrame, merged_size: pd.DataFrame, table_option: TableOption) -> None:
