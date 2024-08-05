@@ -25,6 +25,33 @@ class AggPlotter:
             scatter_points.sort()
             scatter_dir[col] = pd.DataFrame(scatter_points, columns=['x', 'y'])
         return scatter_dir
+    
+    def __get_scatter_dirs_all_tx(self, x_labels: List[str]) -> Tuple[dict, dict]:
+        join_scatter_dir = {}
+        merged_scatter_dir = {}
+        
+        for col in self.agg_data.columns:
+            join_scatter_points = []
+            merged_scatter_points = []
+            for i, p in enumerate(x_labels):
+                matches = re.match(r'(join|merged)-\d+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)', p)
+                
+                if matches is None:
+                    print(f'Invalid path: {p}')
+                    exit(1)
+                
+                if matches.group(1) == 'join':
+                    method_dir = join_scatter_points
+                else:
+                    method_dir = merged_scatter_points
+                
+                method_dir.append((matches.group(2), self.agg_data[col].iloc[i]))
+            join_scatter_points.sort()
+            merged_scatter_points.sort()
+            join_scatter_dir[col] = pd.DataFrame(join_scatter_points, columns=['x', 'y'])
+            merged_scatter_dir[col] = pd.DataFrame(merged_scatter_points, columns=['x', 'y'])
+            
+        return join_scatter_dir, merged_scatter_dir
         
     def __get_scatter_dirs(self, x_labels: List[str]) -> Tuple[dict, dict]:
             
@@ -40,9 +67,8 @@ class AggPlotter:
         elif self.title == 'included-columns':
             default_val = 1
             suffix = '-col'
-        else:
-            default_val = None
-            suffix = ''
+        elif self.title == 'all-tx':
+            return self.__get_scatter_dirs_all_tx(x_labels)
             
         for i, p in enumerate(x_labels):
             matches = re.match(
@@ -85,8 +111,8 @@ class AggPlotter:
         
         for (col_join, scatter_df_join), (col_merged, scatter_df_merged), ax in zip(join_scatter_dir.items(), merged_scatter_dir.items(), axes):
             assert(col_join == col_merged)
-            ax.scatter(scatter_df_join['x'], scatter_df_join['y'], marker='x', label='Join', color=self.colors[0], alpha=0.8, edgecolors='none', s=60)
-            ax.scatter(scatter_df_merged['x'], scatter_df_merged['y'], marker='+', label='Merged', color=self.colors[1], edgecolors='none', s=60)
+            ax.scatter(scatter_df_join['x'], scatter_df_join['y'], marker='x', label='Join', color=self.colors[0], alpha=0.8, s=60)
+            ax.scatter(scatter_df_merged['x'], scatter_df_merged['y'], marker='+', label='Merged', color=self.colors[1], s=60)
             
             for join_row, merged_row in zip(scatter_df_join.itertuples(), scatter_df_merged.itertuples()):
                 if join_row.x != merged_row.x:
@@ -95,9 +121,17 @@ class AggPlotter:
                 
                 ax.plot([join_row.x, merged_row.x], [join_row.y, merged_row.y], color='black', alpha=0.3, linewidth=3, linestyle='dotted')
             
-            ax.xaxis.set_major_locator(plt.FixedLocator(scatter_df_join['x'].unique()))
-            ax.set_xlabel(f'{self.title.capitalize()} (%)')
-            ax.set_ylabel(f'{col_join} (Mean across all TX types)')
+            if col_join == 'GHz':
+                ax.set_ylim(0, 4)
+            elif self.title == 'all-tx':
+                ax.yaxis.set_major_locator(plt.LogLocator(base=2))
+            
+            ax.set_xticks(scatter_df_join['x'].unique())
+            ax.set_xticklabels([str(x) for x in scatter_df_join['x'].unique()])
+            
+            if self.title != 'all-tx':
+                ax.set_xlabel(f'{self.title.capitalize()} (%)')
+                ax.set_ylabel(f'{col_join} (Mean across all TX types)')
             
             ax.legend()
         
