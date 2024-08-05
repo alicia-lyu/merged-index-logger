@@ -8,7 +8,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Plotter")
 
     parser.add_argument(
-        '--dram_gib', type=int, required=False, help='', default=1)
+        '--dram_gib', type=float, required=False, help='', default=1)
     parser.add_argument(
         '--target_gib', type=int, required=False, help='', default=4)
     parser.add_argument(
@@ -18,7 +18,8 @@ if __name__ == '__main__':
     
     # Parse the arguments
     args = parser.parse_args()
-    common_prefix = r'(join|merged)-' + f'{args.dram_gib}-{args.target_gib}-'
+    common_prefix = r'(join|merged)-' + (f'{args.dram_gib:.1f}' if args.dram_gib < 1 else f'{int(args.dram_gib):d}') + f'-{args.target_gib}-'
+    print(f'Common prefix: {common_prefix}')
     
     pattern: str = ''
     
@@ -58,7 +59,7 @@ if __name__ == '__main__':
         print(f'No directories found with pattern {pattern}. Exiting...')
         exit(1)
         
-    dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}'
+    dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}{args.suffix}' 
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
     

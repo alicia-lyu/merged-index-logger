@@ -16,7 +16,7 @@ class TrimOption(Enum):
 def find_stabilization_point(discarded_size, window_size, series: pd.Series) -> Tuple[float, int]:
     series.replace([np.inf, -np.inf], np.nan, inplace=True)
     series = series.dropna(inplace=False)
-    print(f'Finding stabilization point for series of length {len(series)}')
+    # print(f'Finding stabilization point for series of length {len(series)}')
     if len(series) > discarded_size:
         discarded = min(discarded_size, len(series) // 2)
         series = series[discarded:] # Remove the first half of the series
@@ -30,7 +30,7 @@ def find_stabilization_point(discarded_size, window_size, series: pd.Series) -> 
     for i in range(window_size, len(rolling_var)):
         last_N = len(rolling_var) - i
         if all(rolling_var.dropna().tail(last_N) < variance_threshold):
-            print(f'Stabilized after window starting from {i - window_size + discarded}')
+            # print(f'Stabilized after window starting from {i - window_size + discarded}')
             break
     else:
         i = max(0, len(rolling_var) - window_size)
@@ -40,7 +40,7 @@ def find_stabilization_point(discarded_size, window_size, series: pd.Series) -> 
     
     i = max(0, i - window_size)
     mean = series[i:].mean()
-    print(f"Mean after stabilization: {mean}")
+    # print(f"Mean after stabilization: {mean}")
     return mean, i + discarded
 
 class SeriesPlotter:
