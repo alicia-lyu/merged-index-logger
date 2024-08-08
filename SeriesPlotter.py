@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.signal import savgol_filter
 from matplotlib.ticker import AutoLocator, MaxNLocator, Locator
 import re
+from main import args
 
 class TrimOption(Enum):
     ADD = 1
@@ -139,5 +140,8 @@ class SeriesPlotter:
     
     def plot_all_charts(self) -> None:
         self.plot_chart(['OLTP TX'], 'Chart 1: Transaction Throughput', 'TXs/s')
-        self.plot_chart(['SSDReads/TX', 'SSDWrites/TX'], 'Chart 2: IO per TX', 'Operations/TX')
+        if args.rocksdb is False:
+            self.plot_chart(['SSDReads/TX', 'SSDWrites/TX'], 'Chart 2: IO per TX', 'Operations/TX')
+        else:
+            self.plot_chart(['SSTRead(ms)/TX', 'SSTWrite(ms)/TX'], 'Chart 2: IO per TX', 'ms/TX')
         self.plot_chart(['GHz', "Cycles/TX"], 'Chart 3: CPU Information', 'GHz', True, TrimOption.REMOVE_2)

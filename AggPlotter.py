@@ -3,21 +3,27 @@ import numpy as np
 from typing import Callable, List, Tuple
 import re
 import matplotlib.pyplot as plt
-from adjustText import adjust_text
+from main import args
 
 class AggPlotter:
-    def __init__(self, agg_data: pd.DataFrame, fig_dir: str, title: str) -> None:
+    def __init__(self, agg_data: pd.DataFrame, fig_dir: str, paths: List[str]) -> None:
         self.agg_data: pd.DataFrame = agg_data
         self.fig_dir: str = fig_dir
-        self.title: str = title
+        self.paths: List[str] = paths
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
     
+    def plot(self) -> Tuple[dict, dict]:
+        if args.type == 'all-tx':
+            self.__plot_type()
+        else:
+            self.__plot_x()
+    
     # Plot data with no extra variable. Type becomes the x-axis.
-    def plot_type(self, x_labels: List[str]) -> Tuple[dict, dict]:
+    def __plot_type(self) -> Tuple[dict, dict]:
         for col in self.agg_data.columns:
             join_scatter_points = []
             merged_scatter_points = []
-            for i, p in enumerate(x_labels):
+            for i, p in enumerate(self.paths):
                 pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)'
                 matches = re.match(pattern, p)
                 
@@ -36,25 +42,13 @@ class AggPlotter:
             self.__plot(col, None, join_scatter_points, merged_scatter_points)
         
     # Plot data with an extra variable (e.g., selectivity, update size, included columns)
-    def plot_x(self, x_labels: List[str]) -> Tuple[dict, dict]:
-        if self.title == 'selectivity':
-            default_val = 100
-            suffix = '-sel'
-        elif self.title == 'update-size':
-            default_val = 5
-            suffix = '-size'
-        elif self.title == 'included-columns':
-            default_val = 1
-            suffix = '-col'
-        elif self.title == 'all-tx':
-            return self.__get_scatter_dirs_all_tx(x_labels)
-        else:
-            print(f'Invalid title: {self.title}')
-            exit(1)
+    def __plot_x(self) -> Tuple[dict, dict]:
+        
+        default_val, suffix = args.get_default()
         
         rows_per_type: dict[str, Tuple[List, List]] = {}
             
-        for i, p in enumerate(x_labels):
+        for i, p in enumerate(self.paths):
             pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)' + f'({suffix})?' + r'(\d+)?'
             matches = re.match(pattern, p)
             if matches is None:
@@ -159,10 +153,7 @@ class AggPlotter:
                 exit(1)
             ax.plot([join_row.x, merged_row.x], [join_row.y, merged_row.y], color='black', alpha=0.3, linewidth=3, linestyle='dotted')
         
-        if tp is not None:    
-            ax.set_xlabel(f'{self.title.capitalize()}')
-        else:
-            ax.set_xlabel('Transaction Type')
+        ax.set_xlabel(args.get_xlabel())
         
         ax.set_ylabel(f'{col}')
         ax.set_xticks(join_scatter_points['x'].unique())
