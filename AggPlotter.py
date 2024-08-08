@@ -3,7 +3,7 @@ import numpy as np
 from typing import Callable, List, Tuple
 import re
 import matplotlib.pyplot as plt
-from main import args
+from args import args
 
 class AggPlotter:
     def __init__(self, agg_data: pd.DataFrame, fig_dir: str, paths: List[str]) -> None:
@@ -138,8 +138,9 @@ class AggPlotter:
             
         fig.tight_layout()
         col_name = col.replace('/', '-')
+        file_name = f'{col_name}-{tp}.png' if tp is not None else f'{col_name}.png'
         fig.savefig(
-            f'{self.fig_dir}/{col_name}-{tp}.png' if tp is not None else f'{self.fig_dir}/{col_name}.png',
+            f'{self.fig_dir}/{file_name}',
             dpi=300)
             
     def __plot_axis(self, ax: plt.Axes, col: str, tp: str, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame) -> None:

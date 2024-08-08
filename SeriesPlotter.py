@@ -7,7 +7,7 @@ import pandas as pd
 from scipy.signal import savgol_filter
 from matplotlib.ticker import AutoLocator, MaxNLocator, Locator
 import re
-from main import args
+from args import args
 
 class TrimOption(Enum):
     ADD = 1

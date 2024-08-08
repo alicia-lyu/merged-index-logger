@@ -3,7 +3,7 @@ from typing import Callable, List, Tuple
 import os
 import numpy as np
 from SeriesPlotter import find_stabilization_point
-from main import args
+from args import args
 
 class DataProcessor:
     def __init__(self, file_paths: List[str]) -> None:
