@@ -10,7 +10,8 @@ class DataProcessor:
         self.data_frames: List[pd.DataFrame] = []
         self.__load_data()
 
-    def __load_data(self) -> None:
+    def __load_data(self, in_memory: bool = False) -> None:
+        # TODO
         print(f'Loading data from {len(self.file_paths)} files...')
         min_rows = float('inf')
         files_to_remove = []
@@ -47,9 +48,9 @@ class DataProcessor:
             'TXs/s': [ find_stabilization_point(60, 10, df['OLTP TX'])[0] for df in self.data_frames ],
             'IO/TX': [ 
                 find_stabilization_point(60, 10, df['SSDReads/TX'])[0] + find_stabilization_point(60, 10, df['SSDWrites/TX'])[0] for df in self.data_frames ],
-            'GHz': [ find_stabilization_point(60, 10, df['GHz'])[0] for df in self.data_frames ]
+            'GHz': [ find_stabilization_point(60, 10, df['GHz'])[0] for df in self.data_frames ],
+            'Cycles/TX': [ find_stabilization_point(60, 10, df['Cycles/TX'])[0] for df in self.data_frames ],
         }
-        print(data)
         agg_df = pd.DataFrame(data, 
                               index=[os.path.basename(os.path.dirname(path)) for path in self.file_paths])
         agg_df.replace([np.nan], 0, inplace=True)

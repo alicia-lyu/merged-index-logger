@@ -12,52 +12,31 @@ class AggPlotter:
         self.title: str = title
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
     
-    def __calc_mean(self, method_dir: dict):
-        scatter_dir = {}
-        for col in self.agg_data.columns:
-            col_data = self.agg_data[col]
-            scatter_points = []
-            for x, value in method_dir.items():
-                s = 0
-                for i, _ in value:
-                    s += col_data.iloc[i]
-                scatter_points.append((x, s / len(value)))
-            scatter_points.sort()
-            scatter_dir[col] = pd.DataFrame(scatter_points, columns=['x', 'y'])
-        return scatter_dir
-    
-    def __get_scatter_dirs_all_tx(self, x_labels: List[str]) -> Tuple[dict, dict]:
-        join_scatter_dir = {}
-        merged_scatter_dir = {}
-        
+    # Plot data with no extra variable. Type becomes the x-axis.
+    def plot_type(self, x_labels: List[str]) -> Tuple[dict, dict]:
         for col in self.agg_data.columns:
             join_scatter_points = []
             merged_scatter_points = []
             for i, p in enumerate(x_labels):
-                matches = re.match(r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)', p)
+                pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)'
+                matches = re.match(pattern, p)
                 
                 if matches is None:
-                    print(f'Invalid path: {p}')
+                    print(f'Invalid path {p} does not match {pattern}.')
                     exit(1)
                 
                 if matches.group(1) == 'join':
-                    method_dir = join_scatter_points
+                    method_points = join_scatter_points
                 else:
-                    method_dir = merged_scatter_points
+                    method_points = merged_scatter_points
                 
-                method_dir.append((matches.group(2), self.agg_data[col].iloc[i]))
+                method_points.append((matches.group(2), self.agg_data[col].iloc[i]))
             join_scatter_points.sort()
             merged_scatter_points.sort()
-            join_scatter_dir[col] = pd.DataFrame(join_scatter_points, columns=['x', 'y'])
-            merged_scatter_dir[col] = pd.DataFrame(merged_scatter_points, columns=['x', 'y'])
-            
-        return join_scatter_dir, merged_scatter_dir
+            self.__plot(col, None, join_scatter_points, merged_scatter_points)
         
-    def __get_scatter_dirs(self, x_labels: List[str]) -> Tuple[dict, dict]:
-            
-        join_dir = {}
-        merged_dir = {}
-        
+    # Plot data with an extra variable (e.g., selectivity, update size, included columns)
+    def plot_x(self, x_labels: List[str]) -> Tuple[dict, dict]:
         if self.title == 'selectivity':
             default_val = 100
             suffix = '-sel'
@@ -72,13 +51,14 @@ class AggPlotter:
         else:
             print(f'Invalid title: {self.title}')
             exit(1)
+        
+        rows_per_type: dict[str, Tuple[List, List]] = {}
             
         for i, p in enumerate(x_labels):
-            matches = re.match(
-                r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)' + f'({suffix})?' + r'(\d+)?$', 
-                p)
+            pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)' + f'({suffix})?' + r'(\d+)?'
+            matches = re.match(pattern, p)
             if matches is None:
-                print(f'Invalid path: {p}')
+                print(f'Invalid path {p} does not match {pattern}.')
                 exit(1)
             
             if matches.group(4) is None:
@@ -86,25 +66,39 @@ class AggPlotter:
             else:
                 x = int(matches.group(4))
                 
+            tp = matches.group(2)
+            
+            if tp in rows_per_type.keys():
+                join_rows, merged_rows = rows_per_type[tp]
+            else:
+                join_rows = []
+                merged_rows = []
+                rows_per_type[tp] = (join_rows, merged_rows)
+                
             if matches.group(1) == 'join':
-                method_dir = join_dir
+                method_rows = join_rows
             else:
-                method_dir = merged_dir
+                method_rows = merged_rows
                 
-            if x not in method_dir:
-                method_dir[x] = [(i, matches.group(2))]
-            else:
-                method_dir[x].append((i, matches.group(2)))
+            method_rows.append((x, i))
         
-        intersection = set(join_dir.keys()) & set(merged_dir.keys())
-        
-        join_dir = {k: v for k, v in join_dir.items() if k in intersection}
-        merged_dir = {k: v for k, v in merged_dir.items() if k in intersection}
-                
-        join_scatter_dir = self.__calc_mean(join_dir)
-        merged_scatter_dir = self.__calc_mean(merged_dir)
-        
-        return join_scatter_dir, merged_scatter_dir
+        for tp, (join_rows, merged_rows) in rows_per_type.items():
+            assert(len(join_rows) == len(merged_rows))
+            
+        self.__plot_all(rows_per_type)
+    
+    def __plot_all(self, rows_per_type: dict[str, Tuple[List, List]]):
+        for col in self.agg_data.columns:
+            for tp, (join_rows, merged_rows) in rows_per_type.items():
+                join_scatter_points = []
+                merged_scatter_points = []
+                for x, i in join_rows:
+                    join_scatter_points.append((x, self.agg_data[col].iloc[i]))
+                for x, i in merged_rows:
+                    merged_scatter_points.append((x, self.agg_data[col].iloc[i]))
+                join_scatter_points.sort()
+                merged_scatter_points.sort()
+                self.__plot(col, tp, join_scatter_points, merged_scatter_points)
         
     def __find_breakpoints(self, values: np.array):
         sorted_values = np.sort(values)
@@ -113,86 +107,89 @@ class AggPlotter:
         breakpoint_idx = np.argmax(diffs)
         lower = sorted_values[breakpoint_idx]
         upper = sorted_values[breakpoint_idx + 1]
-        lower *= 1.2
-        upper = max((upper + lower) / 2, upper - max(sorted_values.max() - upper, upper) * 0.2)
+        lower = max(lower * 1.2, 1)
+        upper = max((upper + lower) / 2, 
+                    upper - max(sorted_values.max() - upper, upper) * 0.2
+                    )
         if lower >= upper:
             return False
         return lower, upper
 
-    def plot_agg(self) -> None:
-        # Normalize the bar heights for the same column
-        paths = self.agg_data.index
-        join_scatter_dir, merged_scatter_dir = self.__get_scatter_dirs(paths)
-        fig, axes = plt.subplots(2, len(self.agg_data.columns), figsize=(12, 6))
-        fig.subplots_adjust(hspace=0.05)
-
-        for (col_join, scatter_df_join), (col_merged, scatter_df_merged), ax1, ax2 in zip(join_scatter_dir.items(), merged_scatter_dir.items(), axes[0], axes[1]):
-            assert(col_join == col_merged)
+    
+    def __plot(self, col: str, tp: str, join_scatter_points: List[Tuple], merged_scatter_points: List[Tuple]) -> None:
+        
+        print(f'**************************************** Plotting {col} for {tp} ****************************************')
+        print(f'Join: {join_scatter_points}')
+        print(f'Merged: {merged_scatter_points}')
+        
+        join_scatter_points = pd.DataFrame(join_scatter_points, columns=['x', 'y'])
+        merged_scatter_points = pd.DataFrame(merged_scatter_points, columns=['x', 'y'])
+        
+        join_values = join_scatter_points['y'].values
+        merged_values = merged_scatter_points['y'].values
+        all_values = np.concatenate((join_values, merged_values))
+        ret = self.__find_breakpoints(all_values)
+        
+        if ret is False:
+            fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+            self.__plot_axis(ax, col, tp, join_scatter_points, merged_scatter_points)
+        else:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 6))
+            fig.subplots_adjust(hspace=0.05)
+            lower, upper = ret
+            print(f'Lower: {lower}, Upper: {upper}')
+            self.__plot_broken_axis(ax1, ax2, col, tp, join_scatter_points, merged_scatter_points, lower, upper)
             
-            join_values = scatter_df_join['y'].values
-            merged_values = scatter_df_merged['y'].values
-            all_values = np.concatenate((join_values, merged_values))
-            
-            ret = self.__find_breakpoints(all_values)
-            
-            if ret is False:
-                ax2.remove()
-                ax2 = None
-            else:
-                lower, upper = ret
-                print(f'Lower: {lower}, Upper: {upper}')
-            
-            
-            ax1.scatter(scatter_df_join['x'], scatter_df_join['y'], marker='x', label='Join', color=self.colors[0], alpha=0.8, s=60, clip_on=True)
-            ax1.scatter(scatter_df_merged['x'], scatter_df_merged['y'], marker='+', label='Merged', color=self.colors[1], s=60, clip_on=True)
-            
-            if ax2 is not None:
-                ax2.scatter(scatter_df_join['x'], scatter_df_join['y'], marker='x', label='Join', color=self.colors[0], alpha=0.8, s=60, clip_on=True)
-                ax2.scatter(scatter_df_merged['x'], scatter_df_merged['y'], marker='+', label='Merged', color=self.colors[1], s=60, clip_on=True)
-
-            for join_row, merged_row in zip(scatter_df_join.itertuples(), scatter_df_merged.itertuples()):
-                if join_row.x != merged_row.x:
-                    print(f'x values do not match: {join_row.x} != {merged_row.x}')
-                    exit(1)
-                ax1.plot([join_row.x, merged_row.x], [join_row.y, merged_row.y], color='black', alpha=0.3, linewidth=3, linestyle='dotted')
-                if ax2 is not None:
-                    ax2.plot([join_row.x, merged_row.x], [join_row.y, merged_row.y], color='black', alpha=0.3, linewidth=3, linestyle='dotted')
-
-            if ax2 is not None:
-                ax2.set_ylim(0, lower if lower > 0 else 1)
-                vmax = all_values.max() * 1.1 if col_join != 'GHz' else 4
-                ax1.set_ylim(upper, vmax)
-                
-                ax1.spines.bottom.set_visible(False)
-                ax2.spines.top.set_visible(False)
-                ax1.xaxis.tick_top()
-                ax1.tick_params(labeltop=False)  # don't put tick labels at the top
-                ax2.xaxis.tick_bottom()
-
-                d = .5  # proportion of vertical to horizontal extent of the slanted line
-                kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12,
-                    linestyle="none", color='k', mec='k', mew=1, clip_on=False)
-                ax1.plot([0, 1], [0, 0], transform=ax1.transAxes, **kwargs)
-                ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
-
-            
-            if self.title != 'all-tx':
-                if ax2 is not None:
-                    ax2.set_xlabel(f'{self.title.capitalize()} (%)')
-                else:
-                    ax1.set_xlabel(f'{self.title.capitalize()} (%)')
-                ax1.set_ylabel(f'{col_join} (Mean across all TX types)')
-            else:
-                if ax2 is not None:
-                    ax2.set_xlabel('Transaction Type')
-                else:
-                    ax1.set_xlabel('Transaction Type')
-                ax1.set_ylabel(f'{col_join}')
-
-            ax1.set_xticks(scatter_df_join['x'].unique())
-            ax1.set_xticklabels([str(x) for x in scatter_df_join['x'].unique()])
-            ax1.legend()
-
         fig.suptitle(f'{self.title.capitalize()}')
         fig.tight_layout()
-        fig.savefig(f'{self.fig_dir}/Aggregates.png', dpi=300)
+        col_name = col.replace('/', '-')
+        fig.savefig(
+            f'{self.fig_dir}/{col_name}-{tp}.png' if tp is not None else f'{self.fig_dir}/{col_name}.png',
+            dpi=300)
+            
+    def __plot_axis(self, ax: plt.Axes, col: str, tp: str, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame) -> None:
+        ax.scatter(join_scatter_points['x'], join_scatter_points['y'], marker='x', label='Join', color=self.colors[0], alpha=0.8, s=60, clip_on=True)
+        ax.scatter(merged_scatter_points['x'], merged_scatter_points['y'], marker='+', label='Merged', color=self.colors[1], s=60, clip_on=True)
+        
+        # Connect join v.s. merged
+        for join_row, merged_row in zip(join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
+            if join_row.x != merged_row.x:
+                print(f'x values do not match: {join_row.x} != {merged_row.x}')
+                exit(1)
+            ax.plot([join_row.x, merged_row.x], [join_row.y, merged_row.y], color='black', alpha=0.3, linewidth=3, linestyle='dotted')
+        
+        if tp is not None:    
+            ax.set_xlabel(f'{self.title.capitalize()}')
+        else:
+            ax.set_xlabel('Transaction Type')
+        
+        ax.set_ylabel(f'{col}')
+        ax.set_xticks(join_scatter_points['x'].unique())
+        ax.set_xticklabels([str(x) for x in join_scatter_points['x'].unique()])
+        ax.legend()
+        
+    def __plot_broken_axis(self, ax1: plt.Axes, ax2: plt.Axes, col: str, tp: str, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame, lower: float, upper: float) -> None:
+        self.__plot_axis(ax1, col, tp, join_scatter_points, merged_scatter_points)
+        self.__plot_axis(ax2, col, tp, join_scatter_points, merged_scatter_points)
+
+        ax2.set_ylim(-lower * 0.05, lower)
+        
+        vmax = max(join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1 if col != 'GHz' else 4.05
+        ax1.set_ylim(upper, vmax)
+        
+        ax1.spines.bottom.set_visible(False)
+        ax2.spines.top.set_visible(False)
+        ax1.xaxis.tick_top()
+        ax1.tick_params(labeltop=False)  # don't put tick labels at the top
+        ax2.xaxis.tick_bottom()
+
+        d = .5  # proportion of vertical to horizontal extent of the slanted line
+        kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12,
+            linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+        ax1.plot([0, 1], [0, 0], transform=ax1.transAxes, **kwargs)
+        ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
+        
+        ax1.set_xlabel('')
+        ax1.set_xticks([], [])
+        ax2.legend().remove()
+        ax2.set_ylabel('')

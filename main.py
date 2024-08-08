@@ -72,4 +72,7 @@ if __name__ == '__main__':
 
     agg_df = processor.get_agg()
     plotter = AggPlotter(agg_df, dir_name, args.type)
-    plotter.plot_agg()
+    if args.type == 'selectivity' or args.type == 'included-columns' or args.type == 'update-size':
+        plotter.plot_x(file_paths)
+    else:
+        plotter.plot_type(file_paths)
