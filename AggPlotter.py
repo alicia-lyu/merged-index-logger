@@ -132,6 +132,8 @@ class AggPlotter:
         
         if ret is False:
             fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+            if col == 'GHz' and all_values.min() > 3.55:
+                ax.set_ylim(3.5, 4.05)
             self.__plot_axis(ax, col, tp, join_scatter_points, merged_scatter_points)
         else:
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 6))
@@ -140,7 +142,6 @@ class AggPlotter:
             print(f'Lower: {lower}, Upper: {upper}')
             self.__plot_broken_axis(ax1, ax2, col, tp, join_scatter_points, merged_scatter_points, lower, upper)
             
-        fig.suptitle(f'{self.title.capitalize()}')
         fig.tight_layout()
         col_name = col.replace('/', '-')
         fig.savefig(
@@ -176,6 +177,13 @@ class AggPlotter:
         
         vmax = max(join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1 if col != 'GHz' else 4.05
         ax1.set_ylim(upper, vmax)
+        
+        ax1_yticks = ax1.get_yticks()
+        print(f'ax1_yticks: {ax1_yticks}')
+        if ax1_yticks[0] == 0:
+            ax1.set_yscale('log')
+            ax1.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
+            print("ax1_yticks: ", ax1.get_yticks())
         
         ax1.spines.bottom.set_visible(False)
         ax2.spines.top.set_visible(False)

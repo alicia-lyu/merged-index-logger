@@ -5,12 +5,13 @@ import numpy as np
 from SeriesPlotter import find_stabilization_point
 
 class DataProcessor:
-    def __init__(self, file_paths: List[str]):
+    def __init__(self, file_paths: List[str], in_memory: bool = False) -> None:
         self.file_paths: List[str] = file_paths
         self.data_frames: List[pd.DataFrame] = []
+        self.in_memory = in_memory
         self.__load_data()
 
-    def __load_data(self, in_memory: bool = False) -> None:
+    def __load_data(self) -> None:
         # TODO
         print(f'Loading data from {len(self.file_paths)} files...')
         min_rows = float('inf')
@@ -22,13 +23,15 @@ class DataProcessor:
                 print(f'Empty data in {file}. Skipping...')
                 files_to_remove.append(file)
                 continue
-            if len(df) < 50:
+            if self.in_memory is False and len(df) < 50:
                 print(f'Not enough data in {file}. Skipping...')
                 files_to_remove.append(file)
                 continue
             for label, data in df.items():
                 df[label] = pd.to_numeric(data, errors='coerce')
             # Replace inf with NaN and drop rows containing NaN
+            if self.in_memory:
+                df = df[(df["W MiB"] == 0) & (df["R MiB"] == 0)]
             self.data_frames.append(df)
             min_rows = min(min_rows, len(df))
         

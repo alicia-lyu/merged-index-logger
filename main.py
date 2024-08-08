@@ -15,6 +15,8 @@ if __name__ == '__main__':
         '--type', type=str, required=True, help='read, write, scan, update-size, selectivity')
     parser.add_argument(
         '--suffix', type=str, required=False, help='Suffix of the dir names', default='')
+    parser.add_argument(
+        '--in_memory', type=bool, required=False, help='Load all data in memory', default=False)
     
     # Parse the arguments
     args = parser.parse_args()
@@ -63,7 +65,7 @@ if __name__ == '__main__':
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
     
-    processor = DataProcessor(file_paths)
+    processor = DataProcessor(file_paths, args.in_memory)
         
     if args.type == 'read' or args.type == 'write' or args.type == 'update-size' and len(file_paths) < 6:
         combined_data = processor.get_combined_data()    
