@@ -1,3 +1,4 @@
+from matplotlib import transforms
 import pandas as pd
 import numpy as np
 from typing import Callable, List, Tuple
@@ -36,7 +37,15 @@ class AggPlotter:
                 else:
                     method_points = merged_scatter_points
                 
-                method_points.append((matches.group(2), self.agg_data[col].iloc[i]))
+                if matches.group(2) == 'read':
+                    tx_type = 'Point Query\n(Read Only)'
+                elif matches.group(2) == 'write':
+                    tx_type = 'Read-Write'
+                elif matches.group(2) == 'scan':
+                    tx_type = 'Analytical Query\n(Scan)'
+                else:
+                    tx_type = matches.group(2).capitalize()
+                method_points.append((tx_type, self.agg_data[col].iloc[i]))
             join_scatter_points.sort()
             merged_scatter_points.sort()
             self.__plot(col, None, join_scatter_points, merged_scatter_points)
@@ -125,12 +134,12 @@ class AggPlotter:
         ret = self.__find_breakpoints(all_values)
         
         if ret is False:
-            fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+            fig, ax = plt.subplots(1, 1, figsize=(4, 3))
             if col == 'GHz' and all_values.min() > 3.55:
                 ax.set_ylim(3.5, 4.05)
             self.__plot_axis(ax, col, tp, join_scatter_points, merged_scatter_points)
         else:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 6))
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4.5, 4.5))
             fig.subplots_adjust(hspace=0.05)
             lower, upper = ret
             print(f'Lower: {lower}, Upper: {upper}')
@@ -143,8 +152,8 @@ class AggPlotter:
             f'{self.fig_dir}/{file_name}',
             dpi=300)
             
-    def __plot_axis(self, ax: plt.Axes, col: str, tp: str, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame) -> None:
-        ax.scatter(join_scatter_points['x'], join_scatter_points['y'], marker='x', label='Join', color=self.colors[0], alpha=0.8, s=60, clip_on=True)
+    def __plot_axis(self, ax: plt.Axes, col: str, tp: str, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame, broken: bool = False) -> None:
+        ax.scatter(join_scatter_points['x'], join_scatter_points['y'], marker='x', label='Join', color=self.colors[0], s=60, clip_on=True)
         ax.scatter(merged_scatter_points['x'], merged_scatter_points['y'], marker='+', label='Merged', color=self.colors[1], s=60, clip_on=True)
         
         # Connect join v.s. merged
@@ -152,7 +161,12 @@ class AggPlotter:
             if join_row.x != merged_row.x:
                 print(f'x values do not match: {join_row.x} != {merged_row.x}')
                 exit(1)
+                
             ax.plot([join_row.x, merged_row.x], [join_row.y, merged_row.y], color='black', alpha=0.3, linewidth=3, linestyle='dotted')
+            
+            if not broken:
+                self.__add_text(ax, join_row.x, join_row.y, 0)
+                self.__add_text(ax, merged_row.x, merged_row.y, 1)
         
         ax.set_xlabel(args.get_xlabel())
         
@@ -161,9 +175,25 @@ class AggPlotter:
         ax.set_xticklabels([str(x) for x in join_scatter_points['x'].unique()])
         ax.legend()
         
+    def __get_text(self, y: float) -> str:
+        if y > 1e6 or y < 0.1:
+            return f'{y:.2e}'
+        elif y > 1e3:
+            return f'{int(y):d}'
+        else:
+            return f'{y:.2f}'
+    
+    def __add_text(self, ax: plt.Axes, x: float, y: float, method: int):
+        offset_transform = transforms.ScaledTranslation((method - 0.5) * 0.4, 0, ax.figure.dpi_scale_trans)
+        ax.text(
+            x, y, self.__get_text(y), color=self.colors[0], 
+            fontsize=8, ha='right' if method == 0 else 'left', va='center', 
+            bbox=dict(facecolor=self.colors[method], alpha=0.3, edgecolor='none', boxstyle='square'),
+            transform=ax.transData + offset_transform)
+        
     def __plot_broken_axis(self, ax1: plt.Axes, ax2: plt.Axes, col: str, tp: str, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame, lower: float, upper: float) -> None:
-        self.__plot_axis(ax1, col, tp, join_scatter_points, merged_scatter_points)
-        self.__plot_axis(ax2, col, tp, join_scatter_points, merged_scatter_points)
+        self.__plot_axis(ax1, col, tp, join_scatter_points, merged_scatter_points, True)
+        self.__plot_axis(ax2, col, tp, join_scatter_points, merged_scatter_points, True)
 
         ax2.set_ylim(-lower * 0.05, lower)
         
@@ -176,6 +206,27 @@ class AggPlotter:
             ax1.set_yscale('log')
             ax1.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
             print("ax1_yticks: ", ax1.get_yticks())
+        
+        for join_row, merged_row in zip(join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
+            
+            if join_row.y < lower:
+                join_ax = ax2
+            elif join_row.y > upper:
+                join_ax = ax1
+            else:
+                print(f'Join row {join_row} is in the middle.')
+                exit(1)
+                
+            if merged_row.y < lower:
+                merged_ax = ax2
+            elif merged_row.y > upper:
+                merged_ax = ax1
+            else:
+                print(f'Merged row {merged_row} is in the middle.')
+                exit(1)
+            
+            self.__add_text(join_ax, join_row.x, join_row.y, 0)
+            self.__add_text(merged_ax, merged_row.x, merged_row.y, 1)
         
         ax1.spines.bottom.set_visible(False)
         ax2.spines.top.set_visible(False)

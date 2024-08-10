@@ -53,13 +53,24 @@ class DataProcessor:
         else:
             read_col = 'SSTRead(ms)/TX'
             write_col = 'SSTWrite(ms)/TX'
+        
+        stable_start = 0
+        for col in ['OLTP TX', read_col, write_col, 'GHz', 'Cycles/TX']:
+            for p, df in zip(self.file_paths, self.data_frames):
+                # print(p)
+                _, start = find_stabilization_point(60, 10, df[col])
+                if 'scan' not in p and args.in_memory is False:
+                    stable_start = max(stable_start, start)
+        print(f'Stable start: {stable_start}')
             
         data = {
-            'TXs/s': [ find_stabilization_point(60, 10, df['OLTP TX'])[0] for df in self.data_frames ],
+            'TXs/s': [ df['OLTP TX'].iloc[stable_start:].mean() for df in self.data_frames ],
             'IO/TX': [ 
-                find_stabilization_point(60, 10, df[read_col])[0] + find_stabilization_point(60, 10, df[write_col])[0] for df in self.data_frames ],
-            'GHz': [ find_stabilization_point(60, 10, df['GHz'])[0] for df in self.data_frames ],
-            'Cycles/TX': [ find_stabilization_point(60, 10, df['Cycles/TX'])[0] for df in self.data_frames ],
+                df[read_col].iloc[stable_start:].mean() + df[write_col].iloc[stable_start:].mean() 
+                for df in self.data_frames
+            ],
+            'GHz': [ df['GHz'].iloc[stable_start:].mean() for df in self.data_frames ],
+            'Cycles/TX': [ df['Cycles/TX'].iloc[stable_start:].mean() for df in self.data_frames ]
         }
         agg_df = pd.DataFrame(data, 
                               index=[os.path.basename(os.path.dirname(path)) for path in self.file_paths])

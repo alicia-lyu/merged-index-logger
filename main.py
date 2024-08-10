@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--target_gib', type=int, required=False, help='', default=args.DEFAULT_TARGET_GIB)
     parser.add_argument(
-        '--type', type=str, required=True, help='read, write, scan, update-size, selectivity, all-tx')
+        '--type', type=str, required=False, help='read, write, scan, update-size, selectivity, all-tx', default=args.DEFAULT_TYPE)
     parser.add_argument(
         '--suffix', type=str, required=False, help='Suffix of the dir names', default=args.DEFAULT_SUFFIX)
     parser.add_argument(

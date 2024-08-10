@@ -6,6 +6,9 @@ tar-all:
 in-memory:
 	python3 main.py --dram_gib=2 --target_gib=1 --type=all-tx --suffix=-sel20 --in_memory=True
 
+same-size:
+	python3 main.py --dram_gib=0.3 --type=all-tx --suffix=-sel20
+
 plot-all:
 	python3 main.py --type=read
 	python3 main.py --type=scan
