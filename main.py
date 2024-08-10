@@ -34,9 +34,8 @@ if __name__ == '__main__':
         if matches is not None:
             assert(os.path.isdir(dir))
             for file in os.listdir(dir):
-                if file == 'log_sum.csv':
+                if file.endswith('sum.csv'):
                     file_paths.append(f'{dir}/{file}')
-                    break
             else:
                 print(f'Skipping directory {dir} because it does not contain log_sum.csv.')
     
@@ -59,5 +58,5 @@ if __name__ == '__main__':
         exit(0)
     
     agg_df = processor.get_agg()
-    plotter = AggPlotter(agg_df, dir_name, file_paths)
+    plotter = AggPlotter(agg_df, dir_name)
     plotter.plot()

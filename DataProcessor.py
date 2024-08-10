@@ -42,8 +42,7 @@ class DataProcessor:
         self.data_frames = [df.assign(t=df['t'] - df['t'].iloc[0]) for df in self.data_frames]
 
     def get_combined_data(self) -> pd.DataFrame:
-        combined_df = pd.concat(self.data_frames, keys=[os.path.basename(os.path.dirname(path)) for path in self.file_paths], names=['Source', 'Index'])
-        return combined_df
+        return self.__merge_unique_settings_df(self.data_frames)
 
     def get_agg(self) -> pd.DataFrame:
         # Calculate 4 aggregates: TX throughput, Reads per TX, Writes per TX, CPU GHz
@@ -64,15 +63,48 @@ class DataProcessor:
         print(f'Stable start: {stable_start}')
             
         data = {
-            'TXs/s': [ df['OLTP TX'].iloc[stable_start:].mean() for df in self.data_frames ],
-            'IO/TX': [ 
+            'TXs/s': self.__merge_unique_settings_val([ df['OLTP TX'].iloc[stable_start:].mean() for df in self.data_frames ]),
+            'IO/TX': self.__merge_unique_settings_val([ 
                 df[read_col].iloc[stable_start:].mean() + df[write_col].iloc[stable_start:].mean() 
                 for df in self.data_frames
-            ],
-            'GHz': [ df['GHz'].iloc[stable_start:].mean() for df in self.data_frames ],
-            'Cycles/TX': [ df['Cycles/TX'].iloc[stable_start:].mean() for df in self.data_frames ]
+            ]),
+            'GHz': self.__merge_unique_settings_val([ df['GHz'].iloc[stable_start:].mean() for df in self.data_frames ]),
+            'Cycles/TX': self.__merge_unique_settings_val([ df['Cycles/TX'].iloc[stable_start:].mean() for df in self.data_frames ])
         }
-        agg_df = pd.DataFrame(data, 
-                              index=[os.path.basename(os.path.dirname(path)) for path in self.file_paths])
-        agg_df.replace([np.nan], 0, inplace=True)
+            
+        agg_df = pd.DataFrame(data, index=self.__get_unique_settings())
+        
         return agg_df
+    
+    def __get_unique_settings(self):
+        unique_settings = {}
+        for i, p in enumerate(self.file_paths):
+            parent_dir = os.path.basename(os.path.dirname(p))
+            if parent_dir not in unique_settings.keys():
+                unique_settings[parent_dir] = [i]
+            else:
+                unique_settings[parent_dir].append(i)
+        return unique_settings
+    
+    def __merge_unique_settings_df(self, dfs: List[pd.DataFrame]) -> pd.DataFrame:
+        unique_settings = self.__get_unique_settings()
+        print("Files grouped into unique settings:", unique_settings)
+        if isinstance(dfs[0], pd.DataFrame):
+            merged_dfs = []
+            for setting, indices in unique_settings.items():
+                dfs_to_merge = [dfs[i].values for i in indices]
+                stacked = np.stack(dfs_to_merge, axis=0)
+                means = pd.DataFrame(np.mean(stacked, axis=0), columns=dfs[0].columns)
+                merged_dfs.append(means)
+            combined_df = pd.concat(merged_dfs, keys=unique_settings.keys(), names=['Source', 'Index'])
+            return combined_df
+    
+    def __merge_unique_settings_val(self, values: List[float]) -> List[float]:
+        unique_settings = self.__get_unique_settings()
+        print("Files grouped into unique settings:", unique_settings)
+        merged_means = []
+        for setting, indices in unique_settings.items():
+            values_to_merge = [values[i] for i in indices]
+            merged_means.append(np.mean(values_to_merge))
+        return merged_means
+        

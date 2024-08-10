@@ -3,6 +3,18 @@ TIMESTAMP := $(shell date +%m-%d-%H-%M-%S)
 tar-all:
 	tar -czvf "all-plots-$(TIMESTAMP).tar.gz" plots*
 
+clean-logs:
+	mkdir -p archive
+	tar -czvf "archive/join-logs-$(TIMESTAMP).tar.gz" join*
+	tar -czvf "archive/merged-logs-$(TIMESTAMP).tar.gz" merged*
+	rm -rf join*
+	rm -rf merged*
+
+clean-plots:
+	mkdir -p archive
+	tar -czvf "archive/plots-$(TIMESTAMP).tar.gz" plots*
+	rm -rf plots*
+
 in-memory:
 	python3 main.py --dram_gib=2 --target_gib=1 --type=all-tx --suffix=-sel20 --in_memory=True
 

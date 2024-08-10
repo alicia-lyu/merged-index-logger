@@ -7,10 +7,9 @@ import matplotlib.pyplot as plt
 from args import args
 
 class AggPlotter:
-    def __init__(self, agg_data: pd.DataFrame, fig_dir: str, paths: List[str]) -> None:
+    def __init__(self, agg_data: pd.DataFrame, fig_dir: str) -> None:
         self.agg_data: pd.DataFrame = agg_data
         self.fig_dir: str = fig_dir
-        self.paths: List[str] = paths
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
     
     def plot(self) -> Tuple[dict, dict]:
@@ -24,7 +23,7 @@ class AggPlotter:
         for col in self.agg_data.columns:
             join_scatter_points = []
             merged_scatter_points = []
-            for i, p in enumerate(self.paths):
+            for i, p in enumerate(self.agg_data.index):
                 pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)'
                 matches = re.match(pattern, p)
                 
@@ -57,7 +56,7 @@ class AggPlotter:
         
         rows_per_type: dict[str, Tuple[List, List]] = {}
             
-        for i, p in enumerate(self.paths):
+        for i, p in enumerate(self.agg_data.index):
             pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)' + f'({suffix})?' + r'(\d+)?'
             matches = re.match(pattern, p)
             if matches is None:
@@ -134,7 +133,7 @@ class AggPlotter:
         ret = self.__find_breakpoints(all_values)
         
         if ret is False:
-            fig, ax = plt.subplots(1, 1, figsize=(4, 3))
+            fig, ax = plt.subplots(1, 1, figsize=(4.5, 4.5))
             if col == 'GHz' and all_values.min() > 3.55:
                 ax.set_ylim(3.5, 4.05)
             self.__plot_axis(ax, col, tp, join_scatter_points, merged_scatter_points)

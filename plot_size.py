@@ -48,7 +48,7 @@ def plot_scatters(ax: matplotlib.axes.Axes, size_df: pd.DataFrame, label: str, t
 
 
 def plot_both(join_size: pd.DataFrame, merged_size: pd.DataFrame, table_option: TableOption) -> None:
-    fig, ax = plt.subplots(figsize=(5, 5))
+    fig, ax = plt.subplots(figsize=(4.5, 4.5))
     assert(list(join_size.columns) == list(merged_size.columns))
     
     plot_scatters(ax, join_size, 'Materialized Join', table_option)

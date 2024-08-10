@@ -85,7 +85,7 @@ class SeriesPlotter:
             trim = True
         
         # Twinx for secondary y-axis
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 4.5))
         ax1_twinx = None
         ax2_twinx = None
         if secondary_y and (not trim or trim_option != TrimOption.REMOVE_2):
