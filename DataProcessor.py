@@ -62,15 +62,28 @@ class DataProcessor:
                     stable_start = max(stable_start, start)
         print(f'Stable start: {stable_start}')
             
-        data = {
-            'TXs/s': self.__merge_unique_settings_val([ df['OLTP TX'].iloc[stable_start:].mean() for df in self.data_frames ]),
-            'IO/TX': self.__merge_unique_settings_val([ 
-                df[read_col].iloc[stable_start:].mean() + df[write_col].iloc[stable_start:].mean() 
-                for df in self.data_frames
-            ]),
-            'GHz': self.__merge_unique_settings_val([ df['GHz'].iloc[stable_start:].mean() for df in self.data_frames ]),
-            'Cycles/TX': self.__merge_unique_settings_val([ df['Cycles/TX'].iloc[stable_start:].mean() for df in self.data_frames ])
-        }
+        data = {}
+        
+        for col in ['TXs/s', 'IO/TX', 'GHz', 'Cycles/TX']:
+            txs = [df['OLTP TX'].iloc[stable_start:] for df in self.data_frames]
+            if col == 'TXs/s':
+                means = [t.mean() for t in txs]
+            elif col == 'GHz':
+                filtered_series = [df[col].iloc[stable_start:] for df in self.data_frames]
+                means = [s.mean() for s in filtered_series]
+            elif col == 'IO/TX':
+                reads_per_tx = [df[read_col].iloc[stable_start:] for df in self.data_frames]
+                reads = [r * t for r, t in zip(reads_per_tx, txs)]
+                writes_per_tx = [df[write_col].iloc[stable_start:] for df in self.data_frames]
+                writes = [w * t for w, t in zip(writes_per_tx, txs)]
+                read_means = [s.sum() / t.sum() for s, t in zip(reads, txs)]
+                write_means = [s.sum() / t.sum() for s, t in zip(writes, txs)]
+                means = [r + w for r, w in zip(read_means, write_means)]
+            else:
+                cycles_per_tx = [df['Cycles/TX'].iloc[stable_start:] for df in self.data_frames]
+                cycles = [c * t for c, t in zip(cycles_per_tx, txs)]
+                means = [s.sum() / t.sum() for s, t in zip(cycles, txs)]
+            data[col] = self.__merge_unique_settings_val(means)
             
         agg_df = pd.DataFrame(data, index=self.__get_unique_settings())
         

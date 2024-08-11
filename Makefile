@@ -15,8 +15,10 @@ clean-plots:
 	tar -czvf "archive/plots-$(TIMESTAMP).tar.gz" plots*
 	rm -rf plots*
 
+clean-all: clean-logs clean-plots
+
 in-memory:
-	python3 main.py --dram_gib=2 --target_gib=1 --type=all-tx --suffix=-sel20 --in_memory=True
+	python3 main.py --dram_gib=16 --type=all-tx --suffix=-sel20 --in_memory=True
 
 same-size:
 	python3 main.py --dram_gib=0.3 --type=all-tx --suffix=-sel20

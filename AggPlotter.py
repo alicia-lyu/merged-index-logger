@@ -175,10 +175,12 @@ class AggPlotter:
         ax.legend()
         
     def __get_text(self, y: float) -> str:
-        if y > 1e6 or y < 0.1:
+        if y > 1e6 or y < 0.05:
             return f'{y:.2e}'
         elif y > 1e3:
             return f'{int(y):d}'
+        elif y == 0:
+            return '0'
         else:
             return f'{y:.2f}'
     
