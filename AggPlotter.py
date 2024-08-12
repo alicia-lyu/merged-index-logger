@@ -134,7 +134,7 @@ class AggPlotter:
         
         if ret is False:
             fig, ax = plt.subplots(1, 1, figsize=(4.5, 4.5))
-            if col == 'GHz' and all_values.min() > 3.55:
+            if col == 'Utilized CPUs' and all_values.min() > 3.55:
                 ax.set_ylim(3.5, 4.05)
             self.__plot_axis(ax, col, tp, join_scatter_points, merged_scatter_points)
         else:
@@ -172,6 +172,9 @@ class AggPlotter:
         ax.set_ylabel(f'{col}')
         ax.set_xticks(join_scatter_points['x'].unique())
         ax.set_xticklabels([str(x) for x in join_scatter_points['x'].unique()])
+        tick_positions = ax.get_xticks()
+        tick_width = tick_positions[1] - tick_positions[0]
+        ax.set_xlim(tick_positions[0] - tick_width * 0.5, tick_positions[-1] + tick_width * 0.5)
         ax.legend()
         
     def __get_text(self, y: float) -> str:
@@ -198,7 +201,7 @@ class AggPlotter:
 
         ax2.set_ylim(-lower * 0.05, lower)
         
-        vmax = max(join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1 if col != 'GHz' else 4.05
+        vmax = max(join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1 if col != 'Utilized CPUs' else 4.05
         ax1.set_ylim(upper, vmax)
         
         ax1_yticks = ax1.get_yticks()

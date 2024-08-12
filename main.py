@@ -36,8 +36,6 @@ if __name__ == '__main__':
             for file in os.listdir(dir):
                 if file.endswith('sum.csv'):
                     file_paths.append(f'{dir}/{file}')
-            else:
-                print(f'Skipping directory {dir} because it does not contain log_sum.csv.')
     
     print(file_paths)
     if (len(file_paths) == 0):

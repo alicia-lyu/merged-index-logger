@@ -18,10 +18,13 @@ clean-plots:
 clean-all: clean-logs clean-plots
 
 in-memory:
-	python3 main.py --dram_gib=16 --type=all-tx --suffix=-sel20 --in_memory=True
+	python3 main.py --dram_gib=16 --type=all-tx --suffix=-sel19 --in_memory=True
 
 same-size:
-	python3 main.py --dram_gib=0.3 --type=all-tx --suffix=-sel20
+	python3 main.py --dram_gib=0.3 --type=all-tx --suffix=-sel19
+
+default:
+	python3 main.py --type=all-tx --dram=0.3
 
 plot-all:
 	python3 main.py --type=read

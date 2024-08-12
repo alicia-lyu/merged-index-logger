@@ -17,6 +17,7 @@ class TrimOption(Enum):
 def find_stabilization_point(discarded_size, window_size, series: pd.Series) -> Tuple[float, int]:
     series.replace([np.inf, -np.inf], np.nan, inplace=True)
     series = series.dropna(inplace=False)
+    series = series.iloc[:min(len(series), 240)] # Hardcoded
     # print(f'Finding stabilization point for series of length {len(series)}')
     if len(series) > discarded_size:
         discarded = min(discarded_size, len(series) // 2)
@@ -111,7 +112,7 @@ class SeriesPlotter:
                 
                 if secondary_y and i == 1:
                     self.__plot_axis(ax1_twinx, ax2_twinx, grp['t'], grp[col], f'{key} - {col}', source_index, i)
-                elif col == 'GHz':
+                elif col == 'Utilized CPUs':
                     print('Custom locator for GHz')
                     self.__plot_axis(ax1, ax2, grp['t'], grp[col], f'{key} - {col}', source_index, i, MaxNLocator(integer=True), logical_max=4)
                 else:
@@ -144,4 +145,4 @@ class SeriesPlotter:
             self.plot_chart(['SSDReads/TX', 'SSDWrites/TX'], 'Chart 2: IO per TX', 'Operations/TX')
         else:
             self.plot_chart(['SSTRead(ms)/TX', 'SSTWrite(ms)/TX'], 'Chart 2: IO per TX', 'ms/TX')
-        self.plot_chart(['GHz', "Cycles/TX"], 'Chart 3: CPU Information', 'GHz', True, TrimOption.REMOVE_2)
+        self.plot_chart(['Utilized CPUs', "Cycles/TX"], 'Chart 3: CPU Information', 'Utilized CPUs', True, TrimOption.REMOVE_2)
