@@ -113,7 +113,7 @@ class SeriesPlotter:
                 if secondary_y and i == 1:
                     self.__plot_axis(ax1_twinx, ax2_twinx, grp['t'], grp[col], f'{key} - {col}', source_index, i)
                 elif col == 'Utilized CPUs':
-                    print('Custom locator for GHz')
+                    print('Custom locator for Utilized CPUs')
                     self.__plot_axis(ax1, ax2, grp['t'], grp[col], f'{key} - {col}', source_index, i, MaxNLocator(integer=True), logical_max=4)
                 else:
                     self.__plot_axis(ax1, ax2, grp['t'], grp[col], f'{key} - {col}', source_index, i)

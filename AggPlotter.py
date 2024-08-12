@@ -24,7 +24,7 @@ class AggPlotter:
             join_scatter_points = []
             merged_scatter_points = []
             for i, p in enumerate(self.agg_data.index):
-                pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)'
+                pattern = r'(join|merged)-[\d\.]+-\d+-(read-locality|read|scan|write|mixed-\d+-\d+-\d+)'
                 matches = re.match(pattern, p)
                 
                 if matches is None:
@@ -36,12 +36,14 @@ class AggPlotter:
                 else:
                     method_points = merged_scatter_points
                 
-                if matches.group(2) == 'read':
-                    tx_type = 'Point Query\n(Read Only)'
+                if matches.group(2) == 'read-locality':
+                    tx_type = 'Point Query'
+                elif matches.group(2) == 'read':
+                    tx_type = 'Point Query\n(with an extra column)'
                 elif matches.group(2) == 'write':
                     tx_type = 'Read-Write'
                 elif matches.group(2) == 'scan':
-                    tx_type = 'Analytical Query\n(Scan)'
+                    tx_type = 'Analytical Query'
                 else:
                     tx_type = matches.group(2).capitalize()
                 method_points.append((tx_type, self.agg_data[col].iloc[i]))
@@ -57,7 +59,7 @@ class AggPlotter:
         rows_per_type: dict[str, Tuple[List, List]] = {}
             
         for i, p in enumerate(self.agg_data.index):
-            pattern = r'(join|merged)-[\d\.]+-\d+-(read|scan|write|mixed-\d+-\d+-\d+)' + f'({suffix})?' + r'(\d+)?'
+            pattern = r'(join|merged)-[\d\.]+-\d+-(read-locality|read|scan|write|mixed-\d+-\d+-\d+)' + f'({suffix})?' + r'(\d+)?'
             matches = re.match(pattern, p)
             if matches is None:
                 print(f'Invalid path {p} does not match {pattern}.')
@@ -134,21 +136,33 @@ class AggPlotter:
         
         if ret is False:
             fig, ax = plt.subplots(1, 1, figsize=(4.5, 4.5))
-            if col == 'Utilized CPUs' and all_values.min() > 3.55:
-                ax.set_ylim(3.5, 4.05)
-            self.__plot_axis(ax, col, tp, join_scatter_points, merged_scatter_points)
+            self.__plot_axis(ax, col, tp, 
+                             join_scatter_points[join_scatter_points['x'] != 'Point Query\n(with an extra column)'], 
+                             merged_scatter_points[merged_scatter_points['x'] != 'Point Query\n(with an extra column)'])
         else:
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4.5, 4.5))
             fig.subplots_adjust(hspace=0.05)
             lower, upper = ret
             print(f'Lower: {lower}, Upper: {upper}')
-            self.__plot_broken_axis(ax1, ax2, col, tp, join_scatter_points, merged_scatter_points, lower, upper)
+            self.__plot_broken_axis(ax1, ax2, col, tp, 
+                                    join_scatter_points[join_scatter_points['x'] != 'Point Query\n(with an extra column)'], 
+                                    merged_scatter_points[merged_scatter_points['x'] != 'Point Query\n(with an extra column)'], 
+                                    lower, upper)
             
         fig.tight_layout()
         col_name = col.replace('/', '-')
         file_name = f'{col_name}-{tp}.png' if tp is not None else f'{col_name}.png'
         fig.savefig(
             f'{self.fig_dir}/{file_name}',
+            dpi=300)
+        
+        fig_read, ax_read = plt.subplots(1, 1, figsize=(4, 4))
+        self.__plot_axis(ax_read, col, tp,
+                            join_scatter_points[join_scatter_points['x'].str.contains('Point Query')],
+                            merged_scatter_points[merged_scatter_points['x'].str.contains('Point Query')])
+        fig_read.tight_layout()
+        fig_read.savefig(
+            f'{self.fig_dir}/{file_name.replace(".png", "-point-query.png")}',
             dpi=300)
             
     def __plot_axis(self, ax: plt.Axes, col: str, tp: str, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame, broken: bool = False) -> None:
@@ -171,7 +185,7 @@ class AggPlotter:
         
         ax.set_ylabel(f'{col}')
         ax.set_xticks(join_scatter_points['x'].unique())
-        ax.set_xticklabels([str(x) for x in join_scatter_points['x'].unique()])
+        ax.set_xticklabels([str(x) for x in join_scatter_points['x'].unique()], fontsize=9, fontfamily='monospace')
         tick_positions = ax.get_xticks()
         tick_width = tick_positions[1] - tick_positions[0]
         ax.set_xlim(tick_positions[0] - tick_width * 0.5, tick_positions[-1] + tick_width * 0.5)
@@ -201,7 +215,7 @@ class AggPlotter:
 
         ax2.set_ylim(-lower * 0.05, lower)
         
-        vmax = max(join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1 if col != 'Utilized CPUs' else 4.05
+        vmax = max(join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1
         ax1.set_ylim(upper, vmax)
         
         ax1_yticks = ax1.get_yticks()

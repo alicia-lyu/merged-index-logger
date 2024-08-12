@@ -92,7 +92,7 @@ class DataProcessor:
         
         result = []
             
-        for col in ['TXs/s', 'IO/TX', 'Utilized CPUs', 'CPUTime/TX (ms)']:
+        for col in ['TXs/s', 'IO/TX', 'Utilized CPU (%)', 'CPUTime/TX (ms)']:
             tx = df['OLTP TX'].iloc[start:]
             if tx.sum() == 0:
                 print(f'{p} has no transactions.')
@@ -101,9 +101,9 @@ class DataProcessor:
             if col == 'TXs/s':
                 curtailed_tx = tx.iloc[:min_rows]
                 mean_val = curtailed_tx.mean()
-            elif col == 'Utilized CPUs':
-                curtailed_ghz = df[col].iloc[start:min_rows]
-                mean_val = curtailed_ghz.mean()
+            elif col == 'Utilized CPU (%)':
+                curtailed_ghz = df['Utilized CPUs'].iloc[start:min_rows]
+                mean_val = curtailed_ghz.mean() / 4 * 100
             elif col == 'IO/TX': # Do not curtail
                 reads_per_tx = df[self.read_col].iloc[start:]
                 reads = reads_per_tx * tx
@@ -122,7 +122,7 @@ class DataProcessor:
         if 'scan' in p:
             print(f'{p} tx sum over {len(tx)} seconds: {tx.sum()}')
         
-        result = pd.Series(result, index=['TXs/s', 'IO/TX', 'Utilized CPUs', 'CPUTime/TX (ms)'])
+        result = pd.Series(result, index=['TXs/s', 'IO/TX', 'Utilized CPU (%)', 'CPUTime/TX (ms)'])
         
         # print(f'{p} result:\n{result}')
                 

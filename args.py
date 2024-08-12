@@ -91,13 +91,13 @@ class Args():
             case 'scan': # Throughput too low. Only plot aggregates.
                 pattern = common_prefix + r'scan' + args.suffix + r'$'
             case 'all-tx':
-                pattern = common_prefix + r'(read|write|scan)' + args.suffix + r'$'
+                pattern = common_prefix + r'(read-locality|read|write|scan)' + args.suffix + r'$'
             case 'update-size':
                 pattern = common_prefix + r'write(-size\d+)?$'
             case 'selectivity': # Too many stats. Only plot aggregates.
-                pattern = common_prefix + r'(read|write|scan)(-sel\d+)?$'
+                pattern = common_prefix + r'(read-locality|read|write|scan)(-sel\d+)?$'
             case 'included-columns':
-                pattern = common_prefix + r'(read|write|scan)(-col\d+)?$'
+                pattern = common_prefix + r'(read-locality|read|write|scan)(-col\d+)?$'
             case _:
                 raise ValueError(f'Invalid type: {args.type}')
             
