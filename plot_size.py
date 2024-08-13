@@ -69,8 +69,6 @@ def plot_both(join_size: pd.DataFrame, merged_size: pd.DataFrame, table_option: 
     assert(list(join_size.columns) == list(merged_size.columns))
     join_scatters = process_data(join_size, table_option)
     merged_scatters = process_data(merged_size, table_option)
-    join_scatters.to_csv("./size/join_scatters.csv")
-    merged_scatters.to_csv("./size/merged_scatters.csv")
     
     plot_ax(ax, join_scatters, 'Materialized Join', 'size', 'o', 0)
     plot_ax(ax, merged_scatters, 'Merged Index', 'size', 'o', 1)
@@ -92,8 +90,10 @@ def plot_both(join_size: pd.DataFrame, merged_size: pd.DataFrame, table_option: 
     ax2.set_title(f"Time to Generate {table_option.value}")
     ax2.legend()
     fig2.tight_layout()
-    filename2 = table_option.value.replace(' ', '_').lower() + '_time'
+    filename2 = filename + '_time'
     fig2.savefig(f'size/{filename2}.png', dpi=300)
+    join_scatters.to_csv(f"./size/join_{filename}.csv")
+    merged_scatters.to_csv(f"./size/merged_{filename}.csv")
     
 if __name__ == '__main__':
     join_size = pd.read_csv('./size/join_size.csv')

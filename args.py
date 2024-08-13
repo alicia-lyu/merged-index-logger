@@ -80,6 +80,8 @@ class Args():
     def get_pattern(self) -> str:
         common_prefix = r'(join|merged)-' + f'({args.dram_gib:.1f}|{int(args.dram_gib):d})' + f'-{args.target_gib}-'
         print(f'Common prefix: {common_prefix}')
+        if self.rocksdb:
+            common_prefix = 'rocksdb_' + common_prefix
         
         pattern: str = ''
         

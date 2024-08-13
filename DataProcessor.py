@@ -34,6 +34,7 @@ class DataProcessor:
                 continue
             for label, data in df.items():
                 df[label] = pd.to_numeric(data, errors='coerce')
+            # print(df)
             self.data_frames.append(df)
         
         self.file_paths = [file for file in self.file_paths if file not in files_to_remove]

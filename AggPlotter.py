@@ -24,7 +24,7 @@ class AggPlotter:
             join_scatter_points = []
             merged_scatter_points = []
             for i, p in enumerate(self.agg_data.index):
-                pattern = r'(join|merged)-[\d\.]+-\d+-(read-locality|read|scan|write|mixed-\d+-\d+-\d+)'
+                pattern = args.get_pattern()
                 matches = re.match(pattern, p)
                 
                 if matches is None:
@@ -36,16 +36,16 @@ class AggPlotter:
                 else:
                     method_points = merged_scatter_points
                 
-                if matches.group(2) == 'read-locality':
+                if matches.group(3) == 'read-locality':
                     tx_type = 'Point Query'
-                elif matches.group(2) == 'read':
+                elif matches.group(3) == 'read':
                     tx_type = 'Point Query\n(with an extra column)'
-                elif matches.group(2) == 'write':
+                elif matches.group(3) == 'write':
                     tx_type = 'Read-Write'
-                elif matches.group(2) == 'scan':
+                elif matches.group(3) == 'scan':
                     tx_type = 'Analytical Query'
                 else:
-                    tx_type = matches.group(2).capitalize()
+                    tx_type = matches.group(3).capitalize()
                 method_points.append((tx_type, self.agg_data[col].iloc[i]))
             join_scatter_points.sort()
             merged_scatter_points.sort()
