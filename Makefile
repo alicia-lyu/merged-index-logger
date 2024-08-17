@@ -23,6 +23,21 @@ in-memory:
 same-size:
 	python3 main.py --dram_gib=0.3 --type=all-tx --suffix=-sel19
 
+# Directory pattern that you want to check
+DIRS := $(wildcard */)
+
+# Rule to check and clean directories
+clean_unfinished:
+	@for dir in $(DIRS); do \
+		if [ -f $$dir/*sum.csv ]; then \
+			row_count=$$(awk 'END {print NR}' $$dir/*sum.csv); \
+			if [ $$row_count -lt 100 ]; then \
+				echo "Removing $$dir (rows: $$row_count)"; \
+				rm -rf $$dir; \
+			fi \
+		fi \
+	done
+
 default:
 	python3 main.py --type=all-tx --dram=0.3
 

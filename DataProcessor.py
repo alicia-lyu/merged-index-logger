@@ -92,8 +92,12 @@ class DataProcessor:
             start = stable_start
         
         result = []
+        
+        io_col = 'IOs/TX' if not args.rocksdb else 'IO time (ms)/TX'
+        
+        cols = ['TXs/s', io_col, 'Utilized CPU (%)', 'CPUTime/TX (ms)']
             
-        for col in ['TXs/s', 'IO/TX', 'Utilized CPU (%)', 'CPUTime/TX (ms)']:
+        for col in cols:
             tx = df['OLTP TX'].iloc[start:]
             if tx.sum() == 0:
                 print(f'{p} has no transactions.')
@@ -105,7 +109,7 @@ class DataProcessor:
             elif col == 'Utilized CPU (%)':
                 curtailed_ghz = df['Utilized CPUs'].iloc[start:min_rows]
                 mean_val = curtailed_ghz.mean() / 4 * 100
-            elif col == 'IO/TX': # Do not curtail
+            elif col == io_col:
                 reads_per_tx = df[self.read_col].iloc[start:]
                 reads = reads_per_tx * tx
                 writes_per_tx = df[self.write_col].iloc[start:] 
@@ -123,7 +127,7 @@ class DataProcessor:
         if 'scan' in p:
             print(f'{p} tx sum over {len(tx)} seconds: {tx.sum()}')
         
-        result = pd.Series(result, index=['TXs/s', 'IO/TX', 'Utilized CPU (%)', 'CPUTime/TX (ms)'])
+        result = pd.Series(result, index=cols)
         
         # print(f'{p} result:\n{result}')
                 
@@ -166,7 +170,7 @@ class DataProcessor:
         print("Files grouped into unique settings:", unique_settings)
         merged_series = []
         for setting, indices in unique_settings.items():
-            stacked = np.stack([series[i].values for i in indices], axis=0)
+            stacked = np.stack([series[i] for i in indices], axis=0)
             mean_series = pd.Series(np.mean(stacked, axis=0))
             merged_series.append(mean_series)
         result = pd.concat(merged_series, axis=1).T

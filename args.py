@@ -56,7 +56,7 @@ class Args():
             
     def get_xlabel(self) -> str:
         if self.type == 'selectivity':
-            return 'Selectivity (%)'
+            return 'Selectivity as represented by SO (%)'
         elif self.type == 'update-size':
             return 'Update Size ([x, 3x] lines in one order)'
         elif self.type == 'included-columns':
