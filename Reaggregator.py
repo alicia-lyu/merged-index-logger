@@ -3,6 +3,7 @@ from args import args
 from typing import Tuple, List
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from collections import defaultdict
 import os
 
 '''
@@ -28,18 +29,18 @@ class Reaggregator:
             
     def __reagg_all_tx(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         
-        join_scatter_points = []
-        merged_scatter_points = []
-        base_scatter_points = []
+        join_rows = []
+        merged_rows = []
+        base_rows = []
         for i, p in enumerate(self.agg_data.index):
             method, tx_type = self.parse_path(p)
             
             if method == 'join':
-                method_points = join_scatter_points
+                method_points = join_rows
             elif method == 'merged':
-                method_points = merged_scatter_points
+                method_points = merged_rows
             else:
-                method_points = base_scatter_points
+                method_points = base_rows
             
             if tx_type == 'read-locality':
                 tx_type = 'Point Lookup'
@@ -55,7 +56,7 @@ class Reaggregator:
             method_points.append((tx_type, i))
         
         dfs = []
-        for points in [join_scatter_points, merged_scatter_points, base_scatter_points]:
+        for points in [base_rows, join_rows, merged_rows]:
             points.sort()
             points_df = pd.DataFrame(points, columns=['tx_type', 'i_col'])
             points_df.set_index('tx_type', inplace=True)
@@ -70,15 +71,13 @@ class Reaggregator:
                 exit(1)
             return row['size'].iloc[-1]
 
-        join_rows = []
-        merged_rows = []
-        base_rows = []
+        type_to_rows = defaultdict(lambda: ([], [], []))
         
         for i, p in enumerate(self.agg_data.index):
             
             method, tx_type, extr_val = self.parse_path(p)
             
-            size_dir = os.path.join(os.path.dirname(p), 'size_rocksdb' if args.rocksdb else 'size')
+            base_rows, join_rows, merged_rows = type_to_rows[tx_type]
             
             if method == 'join':
                 method_rows = join_rows
@@ -93,6 +92,8 @@ class Reaggregator:
                 core_size_filename = "base_materialized_join_or_merged_index.csv"
                 rest_size_filename = "base_tpc-c_tables.csv"
                 
+            size_dir = os.path.join(os.path.dirname(p), 'size_rocksdb' if args.rocksdb else 'size')
+                
             core_size_df = pd.read_csv(os.path.join(size_dir, core_size_filename))
             rest_size_df = pd.read_csv(os.path.join(size_dir, rest_size_filename))
             
@@ -100,19 +101,27 @@ class Reaggregator:
             rest_size = get_size(rest_size_df, extr_val)
                 
             method_rows.append((extr_val, i, core_size, rest_size))
-            
-        join_df = pd.DataFrame(join_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
-        join_df.set_index('x', inplace=True)
-        merged_df = pd.DataFrame(merged_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
-        merged_df.set_index('x', inplace=True)
-        base_df = pd.DataFrame(base_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
-        base_df.set_index('x', inplace=True)
         
+        type_to_dfs = {}
+        
+        for type, (base_rows, join_rows, merged_rows) in type_to_rows.items():
+            join_rows.sort()
+            join_df = pd.DataFrame(join_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
+            join_df.set_index('x', inplace=True)
+            merged_rows.sort()
+            merged_df = pd.DataFrame(merged_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
+            merged_df.set_index('x', inplace=True)
+            base_rows.sort()
+            base_df = pd.DataFrame(base_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
+            base_df.set_index('x', inplace=True)
+            type_to_dfs[type] = (join_df, merged_df, base_df)
+        
+        # Use the last set of dfs to plot size (tx_type independent)  
         self.__plot_size(join_df, merged_df, base_df)
         
         return join_df, merged_df, base_df
         
-    def __plot_size(self, join_rows: pd.DataFrame, merged_rows: pd.DataFrame, base_rows: pd.DataFrame) -> None:
+    def __plot_size(self, join_rows: pd.DataFrame, merged_rows: pd.DataFrame, base_rows: pd.DataFrame) -> None: # TODO: Test this
         if join_rows.index != merged_rows.index or merged_rows.index != base_rows.index:
             print('Extra-x values do not match')
             print(f'Join:\n{join_rows.index}')

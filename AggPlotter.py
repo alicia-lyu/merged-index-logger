@@ -5,6 +5,7 @@ from typing import Callable, List, Tuple
 import re, os
 import matplotlib.pyplot as plt
 from args import args
+from Reaggregator import Reaggregator
 
 class AggPlotter:
     def __init__(self, agg_data: pd.DataFrame, fig_dir: str) -> None:
@@ -20,25 +21,46 @@ class AggPlotter:
     
     # Plot data with no extra variable. Type becomes the x-axis.
     def __plot_type(self) -> Tuple[dict, dict]:
+        reaggregator = Reaggregator(self.agg_data)
+        base_rows, join_rows, merged_rows = reaggregator()
         for col in self.agg_data.columns:
-            
-            self.__plot(col, None, join_scatter_points, merged_scatter_points)
+            base_scatter_points = []
+            join_scatter_points = []
+            merged_scatter_points = []
+            for base_row, join_row, merged_row in zip(base_rows.itertuples(), join_rows.itertuples(), merged_rows.itertuples()):
+                if base_row.x != join_row.x or join_row.x != merged_row.x:
+                    print(f'x values do not match: {base_row.x} != {join_row.x} != {merged_row.x}')
+                    exit(1)
+                base_scatter_points.append((base_row.x, self.agg_data.loc[col, base_row.i]))
+                join_scatter_points.append((join_row.x, self.agg_data.loc[col, join_row.i]))
+                merged_scatter_points.append((merged_row.x, self.agg_data.loc[col, merged_row.i]))
+            self.__plot(col, None, base_scatter_points, join_scatter_points, merged_scatter_points)
         
     # Plot data with an extra variable (e.g., selectivity, update size, included columns)
     def __plot_x(self) -> Tuple[dict, dict]:
+        reaggregator = Reaggregator(self.agg_data)
+        type_to_rows = reaggregator()
         
-        default_val, suffix = args.get_default()
-        
-        rows_per_type: dict[str, Tuple[List, List]] = {}
-            
-        self.__plot_all(rows_per_type)
+        for tp, (base_rows, join_rows, merged_rows) in type_to_rows.items():
+            for col in self.agg_data.columns:
+                scatter_points_list = []
+                scatter_points_size_list = []
+                for rows in [base_rows, join_rows, merged_rows]:
+                    scatter_points = []
+                    scatter_points_size = []
+                    for row in rows.itertuples():
+                        x = row.x
+                        y = self.agg_data.loc[col, row.i]
+                        scatter_points.append((x, y))
+                        scatter_points_size.append((self.agg_data.loc['core_size', row.i]), y, x)
+                    scatter_points_list.append(scatter_points)
+                self.__plot(col, tp, *scatter_points_list)
+                self.__plot_by_size(col, tp, *scatter_points_size_list)
         
     def __plot_by_size(self, col: str, tp: str, join_scatter_points_size: List[Tuple], merged_scatter_points_size: List[Tuple]) -> None:
         fig, ax = plt.subplots(1, 1, figsize=(4.5, 4))
         join_df = pd.DataFrame(join_scatter_points_size, columns=['size', 'y', 'x'])
         merged_df = pd.DataFrame(merged_scatter_points_size, columns=['size', 'y', 'x'])
-        # print(join_df)
-        # print(merged_df)
         ax.plot(join_df['size'], join_df['y'], marker='x', label='Join', color=self.colors[0], linewidth=2)
         ax.plot(merged_df['size'], merged_df['y'], marker='+', label='Merged', color=self.colors[1], linewidth=2)
         for join_row, merged_row in zip(join_df.itertuples(), merged_df.itertuples()):
@@ -56,57 +78,6 @@ class AggPlotter:
         fig.savefig(
             f'{self.fig_dir}/{file_name}',
             dpi=300)
-        
-    def __plot_size(self, join_scatter_points_size: List[Tuple], merged_scatter_points_size: List[Tuple]) -> None:
-        fig, ax = plt.subplots(1, 1, figsize=(4.5, 4))
-        join_df = pd.DataFrame(join_scatter_points_size, columns=['size', 'y', 'x'])
-        merged_df = pd.DataFrame(merged_scatter_points_size, columns=['size', 'y', 'x'])
-        join_df.sort_values(by='x', inplace=True)
-        merged_df.sort_values(by='x', inplace=True)
-        min_diff = min(np.diff(sorted(join_df['x'].unique())))
-    
-        shift = min_diff * 0.2
-        
-        x_join = join_df['x'] - shift  # Shift join bars to the left
-        x_merged = merged_df['x'] + shift  # Shift merged bars to the right
-        
-        # Plot the bars with adjusted positions
-        ax.bar(x_join, join_df['size'], label='Join', color=self.colors[0], width=min_diff * 0.4)
-        ax.bar(x_merged, merged_df['size'], label='Merged', color=self.colors[1], width=min_diff * 0.4)
-        
-        ax.set_xlabel(args.get_xlabel())
-        ax.set_ylabel('Space Consumption (GB)')
-        ax.set_xticks(join_df['x'].unique())
-        ax.set_xticklabels([str(x) for x in join_df['x'].unique()], fontsize=9, fontfamily='monospace')
-        
-        ax.legend()
-        fig.tight_layout()
-        file_name = f'size.png'
-        fig.savefig(
-            f'{self.fig_dir}/{file_name}',
-            dpi=300)
-        
-    
-    def __plot_all(self, rows_per_type: dict[str, Tuple[List, List]]):
-        for col in self.agg_data.columns:
-            for tp, (join_rows, merged_rows) in rows_per_type.items():
-                join_scatter_points = []
-                join_scatter_points_size = []
-                merged_scatter_points = []
-                merged_scatter_points_size = []
-                for x, i, size in join_rows:
-                    join_scatter_points.append((x, self.agg_data[col].iloc[i]))
-                    join_scatter_points_size.append((size, self.agg_data[col].iloc[i], x))
-                for x, i, size in merged_rows:
-                    merged_scatter_points.append((x, self.agg_data[col].iloc[i]))
-                    merged_scatter_points_size.append((size, self.agg_data[col].iloc[i], x))
-                join_scatter_points.sort()
-                join_scatter_points_size.sort()
-                merged_scatter_points.sort()
-                merged_scatter_points_size.sort()
-                self.__plot(col, tp, join_scatter_points, merged_scatter_points)
-                self.__plot_by_size(col, tp, join_scatter_points_size, merged_scatter_points_size)
-        self.__plot_size(join_scatter_points_size, merged_scatter_points_size)
         
     def __find_breakpoints(self, values: np.array):
         sorted_values = np.sort(values)
