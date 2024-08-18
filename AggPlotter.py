@@ -21,34 +21,7 @@ class AggPlotter:
     # Plot data with no extra variable. Type becomes the x-axis.
     def __plot_type(self) -> Tuple[dict, dict]:
         for col in self.agg_data.columns:
-            join_scatter_points = []
-            merged_scatter_points = []
-            for i, p in enumerate(self.agg_data.index):
-                pattern = args.get_pattern()
-                matches = re.match(pattern, p)
-                
-                if matches is None:
-                    print(f'Invalid path {p} does not match {pattern}.')
-                    exit(1)
-                
-                if matches.group(1) == 'join':
-                    method_points = join_scatter_points
-                else:
-                    method_points = merged_scatter_points
-                
-                if matches.group(3) == 'read-locality':
-                    tx_type = 'Point Query'
-                elif matches.group(3) == 'read':
-                    tx_type = 'Point Query\n(with an extra column)'
-                elif matches.group(3) == 'write':
-                    tx_type = 'Read-Write'
-                elif matches.group(3) == 'scan':
-                    tx_type = 'Analytical Query'
-                else:
-                    tx_type = matches.group(3).capitalize()
-                method_points.append((tx_type, self.agg_data[col].iloc[i]))
-            join_scatter_points.sort()
-            merged_scatter_points.sort()
+            
             self.__plot(col, None, join_scatter_points, merged_scatter_points)
         
     # Plot data with an extra variable (e.g., selectivity, update size, included columns)
@@ -57,53 +30,6 @@ class AggPlotter:
         default_val, suffix = args.get_default()
         
         rows_per_type: dict[str, Tuple[List, List]] = {}
-            
-        for i, p in enumerate(self.agg_data.index):
-            pattern = r'(join|merged)-[\d\.]+-\d+-(read-locality|read|scan|write|mixed-\d+-\d+-\d+)' + f'({suffix})?' + r'(\d+)?'
-            if args.rocksdb:
-                pattern = 'rocksdb_' + pattern
-            matches = re.match(pattern, p)
-            if matches is None:
-                print(f'Invalid path {p} does not match {pattern}.')
-                exit(1)
-            
-            if matches.group(4) is None:
-                x = default_val
-            else:
-                x = int(matches.group(4))
-                
-            tp = matches.group(2)
-            
-            if tp in rows_per_type.keys():
-                join_rows, merged_rows = rows_per_type[tp]
-            else:
-                join_rows = []
-                merged_rows = []
-                rows_per_type[tp] = (join_rows, merged_rows)
-            
-            size_dir = os.path.join(os.path.dirname(p), 'size_rocksdb' if args.rocksdb else 'size')
-            if matches.group(1) == 'join':
-                method_rows = join_rows
-                size_df = pd.read_csv(f"{size_dir}/join_materialized_join_or_merged_index.csv")
-            else:
-                method_rows = merged_rows
-                size_df = pd.read_csv(f"{size_dir}/merged_materialized_join_or_merged_index.csv")
-                # print(size_df)
-            
-            row = size_df[size_df[args.type] == x]
-            if row.empty:
-                print(f'No data for {args.type} = {x} in {size_dir}')
-                exit(1)
-            size_val = row['size'].iloc[-1]
-                
-            method_rows.append((x, i, float(size_val)))
-        
-        for tp, (join_rows, merged_rows) in rows_per_type.items():
-            if len(join_rows) != len(merged_rows):
-                print(tp)
-                print(join_rows)
-                print(merged_rows)
-                exit(1)
             
         self.__plot_all(rows_per_type)
         

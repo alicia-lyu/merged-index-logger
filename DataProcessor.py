@@ -5,6 +5,17 @@ import numpy as np
 from SeriesPlotter import find_stabilization_point
 from args import args
 
+'''
+Read all csv files of time series data and use one of the following methods to process the data:
+1. get_combined_data: 
+    a. Merge all time series data by calculating a time series mean for the same setting
+    b. Combine all time series (2D, index=time, columns=metrics) data into one DataFrame (3D, keys=source, index=time, columns=metrics)
+2. get_agg: 
+    a. Find a global stabilization point for all time series data
+    b. For each time series, calculate the stabilized mean of the following metrics: TXs/s, IOs/TX, Utilized CPU (%), CPUTime/TX (ms)
+    c. Merge all the means whose parent directories are the same.
+    d. Reorganize the final means into a DataFrame (2D, index=source, columns=metrics)
+'''
 class DataProcessor:
     def __init__(self, file_paths: List[str]) -> None:
         self.file_paths: List[str] = file_paths
@@ -47,8 +58,8 @@ class DataProcessor:
         return self.__merge_unique_settings_df(dfs)
 
     def get_agg(self) -> pd.DataFrame:
-        # Calculate 4 aggregates: TX throughput, Reads per TX, Writes per TX, CPU GHz
-            
+
+        # Find the stabilization point
         min_rows = min([len(df) for df in self.data_frames])
         if args.in_memory:
             for i, df in enumerate(self.data_frames):
@@ -155,15 +166,6 @@ class DataProcessor:
             merged_dfs.append(means)
         combined_df = pd.concat(merged_dfs, keys=unique_settings.keys(), names=['Source', 'Index'])
         return combined_df
-    
-    def __merge_unique_settings_val(self, values: List[float]) -> List[float]:
-        unique_settings = self.__get_unique_settings()
-        print("Files grouped into unique settings:", unique_settings)
-        merged_means = []
-        for setting, indices in unique_settings.items():
-            values_to_merge = [values[i] for i in indices]
-            merged_means.append(np.mean(values_to_merge))
-        return merged_means
     
     def __merge_unique_settings_series(self, series: List[pd.Series]) -> pd.DataFrame:
         unique_settings = self.__get_unique_settings()

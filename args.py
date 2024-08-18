@@ -1,5 +1,5 @@
 from typing import Tuple
-import os
+import os, re
 
 DEFAULT_DRAM_GIB = 1
 DEFAULT_TARGET_GIB = 4
@@ -31,8 +31,7 @@ class Args():
             default_val = 1
             suffix = '-col'
         else:
-            print(f'Invalid title: {args.type}')
-            exit(1)
+            raise ValueError(f'Invalid type: {args.type}')
         return default_val, suffix
     
     def get_title(self) -> str:
@@ -78,7 +77,7 @@ class Args():
         return dir_name
             
     def get_pattern(self) -> str:
-        common_prefix = r'(join|merged)-' + f'({args.dram_gib:.1f}|{int(args.dram_gib):d})' + f'-{args.target_gib}-'
+        common_prefix = r'(join|merged|base)-' + f'({args.dram_gib:.1f}|{int(args.dram_gib):d})' + f'-{args.target_gib}-'
         print(f'Common prefix: {common_prefix}')
         if self.rocksdb:
             common_prefix = 'rocksdb_' + common_prefix
@@ -104,5 +103,21 @@ class Args():
                 raise ValueError(f'Invalid type: {args.type}')
             
         return pattern
-
+    
+    def parse_path(self, path: str):
+        matches = re.match(self.get_pattern(), path)
+        method = matches.group(1)
+        tx_type = matches.group(3)
+        if matches.group(4) is not None:
+            extra = matches.group(4)
+            extra_matches = re.match(r'.*(\d+)', extra)
+            extra_val = int(extra_matches.group(1))
+            return method, tx_type, extra_val
+        else:
+            try:
+                default_val, suffix = self.get_default()
+                return method, tx_type, default_val
+            except ValueError:
+                return method, tx_type
+        
 args = Args()
