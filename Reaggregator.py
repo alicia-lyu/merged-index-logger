@@ -1,10 +1,11 @@
 import pandas as pd
 from args import args
-from typing import Tuple, List
+from typing import Callable, Tuple, List
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from collections import defaultdict
-import os
+import os, re
+import numpy as np
 
 '''
 Reaggregate the Agg DataFrame (2D, index=source, columns=metrics) into
@@ -17,6 +18,60 @@ class Reaggregator:
     def __init__(self, agg_data: pd.DataFrame) -> None:
         self.agg_data: pd.DataFrame = agg_data
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
+        self.size_dir = os.path.join(os.path.dirname(p), 'size_rocksdb' if args.rocksdb else 'size')
+        self.__parse_size()
+        
+    def __parse_size(self):
+        for method in ['join', 'merged', 'base']:
+            size_core, size_rest, total_time = self.__agg_size_by_config(f'{method}_rest.csv')
+            size_core.to_csv(os.path.join(self.size_dir, f'{method}_core.csv'), index=False)
+            size_rest.to_csv(os.path.join(self.size_dir, f'{method}_rest.csv'), index=False)
+            total_time.to_csv(os.path.join(self.size_dir, f'{method}_time.csv'), index=False)
+    
+    def __agg_size_by_config(self, size_filename: str):
+        def parse_config(config):
+            patten = r'([\.\d]+)\|(\d+)\|(\d+)\|(\d+)'
+            matches = re.match(patten, config)
+            assert(matches is not None)
+            dram = float(matches.group(1))
+            target = int(matches.group(2))
+            selectivity = int(matches.group(3))
+            included_columns = int(matches.group(4))
+            return dram, target, selectivity, included_columns
+        
+        def process_config_dict(config_dict: dict, func: Callable, column_name: str) -> pd.DataFrame:
+            config_df = []
+            for config, value in config_dict.items():
+                dram, target, selectivity, included_columns = parse_config(config)
+                config_df.append((dram, target, selectivity, included_columns, func(value)))
+            return pd.DataFrame(config_df, columns=['dram', 'target', 'selectivity', 'included_columns', column_name])
+        
+        size_df = pd.read_csv(os.path.join(self.size_dir, size_filename))
+        config_to_size_core = defaultdict(list) # config -> [size], list to be averaged
+        config_to_size_rest = defaultdict(list) # config -> [size], list to be averaged
+        config_to_total_time = defaultdict(defaultdict(list)) # config -> table -> [time], list to be averaged, tables will be summed
+        
+        for index, row in size_df.iterrows():
+            if row['time(ms)'] > 0:
+                config_to_total_time[row['config']][row['table(s)']].append(row['time(ms)'])
+            
+            if row['table(s)'] == 'core': # ATTN: name mismatch
+                size_dir = config_to_size_rest
+            elif row['table(s)'] in ['join_results', 'merged_index', 'stock+orderline_secondary']:
+                size_dir = config_to_size_core
+            elif row['table(s)'] == 'orderline_secondary':
+                config_to_size_core[row['config']][-1] += row['size']
+                continue
+            else:
+                raise ValueError(f'Invalid table name: {row["table(s)"]}')
+                
+            size_dir[row['config']].append(row['size'])
+            
+        size_core = process_config_dict(config_to_size_core, np.mean, 'size')
+        size_rest = process_config_dict(config_to_size_rest, np.mean, 'size')
+        total_time = process_config_dict(config_to_total_time, lambda table_dict: sum([np.mean(time_list) for time_list in table_dict.values()]), 'time(ms)')
+        
+        return size_core, size_rest, total_time
 
     def __call__(self) -> pd.DataFrame:
         if args.type == 'all-tx':
@@ -81,21 +136,16 @@ class Reaggregator:
             
             if method == 'join':
                 method_rows = join_rows
-                core_size_filename = "join_materialized_join_or_merged_index.csv"
-                rest_size_filename = "join_tpc-c_tables.csv"
             elif method == 'merged':
                 method_rows = merged_rows
-                core_size_filename = "merged_materialized_join_or_merged_index.csv"
-                rest_size_filename = "merged_tpc-c_tables.csv"
             else:
                 method_rows = base_rows
-                core_size_filename = "base_materialized_join_or_merged_index.csv"
-                rest_size_filename = "base_tpc-c_tables.csv"
                 
-            size_dir = os.path.join(os.path.dirname(p), 'size_rocksdb' if args.rocksdb else 'size')
-                
-            core_size_df = pd.read_csv(os.path.join(size_dir, core_size_filename))
-            rest_size_df = pd.read_csv(os.path.join(size_dir, rest_size_filename))
+            core_size_filename = f"{method}_core.csv"
+            rest_size_filename = f"{method}_rest.csv"
+            
+            core_size_df = pd.read_csv(os.path.join(self.size_dir, core_size_filename))
+            rest_size_df = pd.read_csv(os.path.join(self.size_dir, rest_size_filename))
             
             core_size = get_size(core_size_df, extr_val)
             rest_size = get_size(rest_size_df, extr_val)
@@ -136,7 +186,7 @@ class Reaggregator:
         
         fig, ax = plt.subplots(figsize=(4.5, 4))
         
-        for df, x, color, label in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors, ['Base', 'Join', 'Merged']):
+        for df, x, color in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors[:3]):
             ax.bar(x, df['core_size'], width=bar_width, color=color)
             ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch='//', bottom=df['core_size'])
             
