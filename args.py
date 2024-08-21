@@ -17,6 +17,13 @@ class Args():
         self.in_memory: bool = DEFAULT_IN_MEMORY
         self.rocksdb: bool = DEFAULT_ROCKSDB
         
+        self.pattern = None
+    
+    def get_pattern(self) -> str:
+        if self.pattern is None:
+            self.pattern = self.format_pattern()
+        return self.pattern
+        
     def __str__(self) -> str:
         return f'dram_gib: {self.dram_gib}, target_gib: {self.target_gib}, type: {self.type}, suffix: {self.suffix}, in_memory: {self.in_memory}, rocksdb: {self.rocksdb}'
     
@@ -31,7 +38,7 @@ class Args():
             default_val = 1
             suffix = '-col'
         else:
-            raise ValueError(f'Invalid type: {args.type}')
+            raise ValueError(f'Invalid type: {self.type}')
         return default_val, suffix
     
     def get_title(self) -> str:
@@ -50,7 +57,7 @@ class Args():
         elif self.type == 'scan':
             return 'Scan Transactions'
         else:
-            print(f'Invalid title: {args.type} to be set as title')
+            print(f'Invalid title: {self.type} to be set as title')
             exit(1)
             
     def get_xlabel(self) -> str:
@@ -63,11 +70,11 @@ class Args():
         elif self.type == 'all-tx':
             return 'Transaction Type'
         else:
-            print(f'Invalid title: {args.type} to be set as xlabel')
+            print(f'Invalid title: {self.type} to be set as xlabel')
             exit(1)
             
     def get_dir(self) -> str:
-        dir_name = f'plots-{args.dram_gib}-{args.target_gib}-{args.type}{args.suffix}'
+        dir_name = f'plots-{self.dram_gib}-{self.target_gib}-{self.type}{self.suffix}'
         if self.in_memory:
             dir_name += '-in-memory' 
         if self.rocksdb:
@@ -76,23 +83,22 @@ class Args():
             os.mkdir(dir_name)
         return dir_name
             
-    def get_pattern(self) -> str:
-        common_prefix = r'(join|merged|base)-' + f'({args.dram_gib:.1f}|{int(args.dram_gib):d})' + f'-{args.target_gib}-'
-        print(f'Common prefix: {common_prefix}')
+    def format_pattern(self) -> str:
+        common_prefix = r'(join|merged|base)-' + f'({self.dram_gib:.1f}|{int(self.dram_gib):d})' + f'-{self.target_gib}-'
         if self.rocksdb:
             common_prefix = 'rocksdb_' + common_prefix
         
         pattern: str = ''
         
-        match args.type:
+        match self.type:
             case 'read':
-                pattern = common_prefix + r'read' + args.suffix + r'$'
+                pattern = common_prefix + r'read' + self.suffix + r'$'
             case 'write':
-                pattern = common_prefix + r'write' + args.suffix + r'$'
+                pattern = common_prefix + r'write' + self.suffix + r'$'
             case 'scan': # Throughput too low. Only plot aggregates.
-                pattern = common_prefix + r'scan' + args.suffix + r'$'
+                pattern = common_prefix + r'scan' + self.suffix + r'$'
             case 'all-tx':
-                pattern = common_prefix + r'(read-locality|read|write|scan)' + args.suffix + r'$'
+                pattern = common_prefix + r'(read-locality|read|write|scan)' + self.suffix + r'$'
             case 'update-size':
                 pattern = common_prefix + r'write(-size\d+)?$'
             case 'selectivity': # Too many stats. Only plot aggregates.
@@ -100,7 +106,7 @@ class Args():
             case 'included-columns':
                 pattern = common_prefix + r'(read-locality|read|write|scan)(-col\d+)?$'
             case _:
-                raise ValueError(f'Invalid type: {args.type}')
+                raise ValueError(f'Invalid type: {self.type}')
             
         return pattern
     
@@ -108,9 +114,9 @@ class Args():
         matches = re.match(self.get_pattern(), path)
         method = matches.group(1)
         tx_type = matches.group(3)
-        if matches.group(4) is not None:
+        if len(matches.groups()) > 3 and matches.group(4) is not None:
             extra = matches.group(4)
-            extra_matches = re.match(r'.*(\d+)', extra)
+            extra_matches = re.match(r'[^\d]+(\d+)', extra)
             extra_val = int(extra_matches.group(1))
             return method, tx_type, extra_val
         else:

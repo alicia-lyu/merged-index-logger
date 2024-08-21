@@ -28,21 +28,30 @@ class AggPlotter:
             scatter_points_list, scatter_points_size_list = self.__get_scatter_points(base_rows, join_rows, merged_rows, col)
             self.__plot(col, None, *scatter_points_list)
     
-    def __get_scatter_points(self, base_rows: pd.DataFrame, join_rows: pd.DataFrame, merged_rows: pd.DataFrame, col: str) -> Tuple[List, List]:
+    def __get_scatter_points(self, base_rows: pd.DataFrame, join_rows: pd.DataFrame, merged_rows: pd.DataFrame, col: str, size_df = None) -> Tuple[List, List]:
         scatter_points_list = []
-        scatter_points_size_list = []
+        if "core_size" in base_rows.columns:
+            scatter_points_size_list = []
         for rows in [base_rows, join_rows, merged_rows]: # Sorted on x
             scatter_points = []
-            scatter_points_size = []
+            if "core_size" in base_rows.columns:
+                scatter_points_size = []
             for row in rows.itertuples():
-                x = row.x
-                y = self.agg_data.loc[col, row.i]
+                x = row.Index
+                data_row = self.agg_data.iloc[row.i_col]
+                y = data_row[col]
                 scatter_points.append((x, y))
-                scatter_points_size.append((self.agg_data.loc['core_size', row.i]), y, x)
-            scatter_points_size.sort()
+                if "core_size" in base_rows.columns:
+                    scatter_points_size.append((row.core_size, y, x))
+            if "core_size" in base_rows.columns:
+                scatter_points_size.sort()
             scatter_points_list.append(scatter_points)
-            scatter_points_size_list.append(scatter_points_size)
-        return scatter_points_list, scatter_points_size_list
+            if "core_size" in base_rows.columns:
+                scatter_points_size_list.append(scatter_points_size)
+        if "core_size" in base_rows.columns:
+            return scatter_points_list, scatter_points_size_list
+        else:
+            return scatter_points_list, None
         
     # Plot data with an extra variable (e.g., selectivity, update size, included columns)
     def __plot_x(self) -> Tuple[dict, dict]:
@@ -56,7 +65,7 @@ class AggPlotter:
     
     def __set_locator_by_col(self, ax: plt.Axes, col: str) -> None:
         if col == 'Utilized CPU (%)':
-            ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
+            ax.yaxis.set_major_locator(plt.MultipleLocator(5))
         else:
             ax.set_yscale('log')
             ax.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
@@ -85,15 +94,13 @@ class AggPlotter:
     
     def __create_df_size(self, size_list: List[Tuple]) -> pd.DataFrame:
         df = pd.DataFrame(size_list, columns=['size', 'y', 'x'])
-        df.set_index('size', inplace=True)
         return df
         
     def __create_df_xy(self, xy_list: List[Tuple]) -> pd.DataFrame:
-        df = pd.DataFrame(List, columns=['x', 'y'])
-        df.set_index('x', inplace=True)
+        df = pd.DataFrame(xy_list, columns=['x', 'y'])
         return df
         
-    def __find_breakpoints(self, values: np.array):
+    def __find_breakpoints_in_array(self, values: np.array):
         sorted_values = np.sort(values)
         sqrt_values = np.sqrt(np.sqrt(sorted_values))
         diffs = np.diff(sqrt_values)
@@ -109,9 +116,9 @@ class AggPlotter:
         return lower, upper
 
     
-    def __find_breakpoints(self, *dfs: pd.DataFrame) -> Tuple[float, float]:
-        all_values = np.concatenate([df['y'].values for df in dfs])
-        return self.__find_breakpoints(all_values)
+    def __find_breakpoints(self, base_scatter_points: pd.DataFrame, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame) -> Tuple[float, float]:
+        all_values = np.concatenate([df['y'].values for df in [base_scatter_points, join_scatter_points, merged_scatter_points]])
+        return self.__find_breakpoints_in_array(all_values)
     
     def __plot(self, col: str, tp: str, base_scatter_points: List[Tuple], join_scatter_points: List[Tuple], merged_scatter_points: List[Tuple]) -> None:
         
@@ -123,9 +130,9 @@ class AggPlotter:
         join_scatter_points = self.__create_df_xy(join_scatter_points)
         merged_scatter_points = self.__create_df_xy(merged_scatter_points)
         
-        assert(base_scatter_points.index == join_scatter_points.index and join_scatter_points.index == merged_scatter_points.index)
+        assert(list(base_scatter_points.index) == list(join_scatter_points.index) and list(join_scatter_points.index) == list(merged_scatter_points.index))
         
-        breakpoint_ret = self.__find_breakpoints((base_scatter_points, join_scatter_points, merged_scatter_points))
+        breakpoint_ret = self.__find_breakpoints(base_scatter_points, join_scatter_points, merged_scatter_points)
         
         # All TX types except Point Query with an extra column
         all_tx_mask = join_scatter_points.index != 'Point Query\n(with an extra column)'
@@ -169,7 +176,7 @@ class AggPlotter:
             
     def __plot_axis(self, ax: plt.Axes, col: str, tp: str, base_scatter_points: pd.DataFrame, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame, broken: bool = False) -> None:
         for i, scatter_points in enumerate([base_scatter_points, join_scatter_points, merged_scatter_points]):
-            ax.plot(scatter_points['x'], scatter_points['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=2)
+            ax.scatter(scatter_points['x'], scatter_points['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=2)
             if not broken:
                 for row in scatter_points.itertuples():
                     self.__add_text(ax, row.x, row.y, i)

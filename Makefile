@@ -20,6 +20,9 @@ clean-all: clean-logs clean-plots
 in-memory:
 	python3 main.py --dram_gib=16 --type=all-tx --suffix=-sel19 --in_memory=True
 
+selectivity:
+	python3 main.py --dram_gib=0.3 --type=selectivity
+
 same-size:
 	python3 main.py --dram_gib=0.3 --type=all-tx --suffix=-sel19
 

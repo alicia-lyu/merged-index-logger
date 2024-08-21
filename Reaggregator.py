@@ -63,7 +63,7 @@ class Reaggregator:
         size_df = pd.read_csv(size_path)
         config_to_size_core = defaultdict(list) # config -> [size], list to be averaged
         config_to_size_rest = defaultdict(list) # config -> [size], list to be averaged
-        config_to_total_time = defaultdict(defaultdict(list)) # config -> table -> [time], list to be averaged, tables will be summed
+        config_to_total_time = defaultdict(lambda: defaultdict(list)) # config -> table -> [time], list to be averaged, tables will be summed
         
         for index, row in size_df.iterrows():
             if row['time(ms)'] > 0:
@@ -74,7 +74,7 @@ class Reaggregator:
             elif row['table(s)'] in ['join_results', 'merged_index', 'stock+orderline_secondary']:
                 size_dir = config_to_size_core
             elif row['table(s)'] == 'orderline_secondary':
-                config_to_size_core[row['config']][-1] += row['size']
+                config_to_size_rest[row['config']][-1] += row['size']
                 continue
             else:
                 raise ValueError(f'Invalid table name: {row["table(s)"]}')
@@ -102,7 +102,7 @@ class Reaggregator:
         merged_rows = []
         base_rows = []
         for i, p in enumerate(self.agg_data.index):
-            method, tx_type = self.parse_path(p)
+            method, tx_type = args.parse_path(p)
             
             if method == 'join':
                 method_points = join_rows
@@ -134,7 +134,7 @@ class Reaggregator:
     
     def __reagg_extra(self):
         def get_size(size_df: pd.DataFrame, x: int) -> float:
-            row = size_df[size_df[args.type] == x]
+            row = size_df[(size_df[args.type] == x) & (size_df["included_columns"] == 1)] # ATTN: Hardcoded
             if row.empty:
                 print(f'No data for {args.type} = {x}')
                 exit(1)
@@ -150,7 +150,7 @@ class Reaggregator:
         
         for i, p in enumerate(self.agg_data.index):
             
-            method, tx_type, extr_val = self.parse_path(p)
+            method, tx_type, extr_val = args.parse_path(p)
             
             base_rows, join_rows, merged_rows = type_to_rows[tx_type]
             
@@ -178,37 +178,42 @@ class Reaggregator:
             type_to_dfs[type] = (convert_to_df(base_rows), convert_to_df(join_rows), convert_to_df(merged_rows))
         
         # Use the last set of dfs to plot size (tx_type independent)  
-        self.__plot_size(*type_to_dfs.values[-1])
+        self.__plot_size(*(type_to_dfs[type]))
         
         return type_to_dfs
         
-    def __plot_size(self, join_rows: pd.DataFrame, merged_rows: pd.DataFrame, base_rows: pd.DataFrame) -> None: # TODO: Test this
-        if join_rows.index != merged_rows.index or merged_rows.index != base_rows.index:
+    def __plot_size(self, base_rows: pd.DataFrame, join_rows: pd.DataFrame, merged_rows: pd.DataFrame) -> None: # TODO: Test this
+        if list(join_rows.index) != list(merged_rows.index) or list(merged_rows.index) != list(base_rows.index):
             print('Extra-x values do not match')
             print(f'Join:\n{join_rows.index}')
             print(f'Merged:\n{merged_rows.index}')
             print(f'Base:\n{base_rows.index}')
             exit(1)
+        
+        print('**************************************** Plotting Size ****************************************')
+        print('Base:', base_rows)
+        print('Join:', join_rows)
+        print('Merged:', merged_rows)
             
         bar_width = 0.3
-        base_x = range(len(base_rows.index)) - bar_width
+        base_x = [x - bar_width for x in range(len(base_rows.index))]
         join_x = range(len(join_rows.index))
-        merged_x = range(len(merged_rows.index)) + bar_width
+        merged_x = [x + bar_width for x in range(len(merged_rows.index))]
         
         fig, ax = plt.subplots(figsize=(4.5, 4))
         
         for df, x, color in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors[:3]):
-            ax.bar(x, df['core_size'], width=bar_width, color=color)
-            ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch='//', bottom=df['core_size'])
+            ax.bar(x, df['core_size'], width=bar_width, color=color, edgecolor='black')
+            ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch='x', bottom=df['core_size'], edgecolor='black')
             
         ax.set_xticks(range(len(base_rows.index)), base_rows.index)
         ax.set_xlabel(args.get_xlabel())
         ax.set_ylabel('Size (GB)')
         
         color_patches = [mpatches.Patch(color=color, label=label) for color, label in zip(self.colors[:3], ['Base', 'Join', 'Merged'])]
-        hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', '//'], ['Core', 'Rest'])]
+        hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', 'x'], ['Core', 'Rest'])]
         
         combined_handles = color_patches + hatch_patches
         ax.legend(handles=combined_handles)
         fig.tight_layout()
-        fig.savefig(os.path.join(args.get_dir(), f'{args.type}_size.png'))
+        fig.savefig(os.path.join(args.get_dir(), f'{args.type}_size.png'), dpi=300)
