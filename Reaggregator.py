@@ -18,17 +18,31 @@ class Reaggregator:
     def __init__(self, agg_data: pd.DataFrame) -> None:
         self.agg_data: pd.DataFrame = agg_data
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
-        self.size_dir = os.path.join(os.path.dirname(p), 'size_rocksdb' if args.rocksdb else 'size')
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        self.size_dir = os.path.join(current_dir, 'size_rocksdb' if args.rocksdb else 'size')
         self.__parse_size()
         
     def __parse_size(self):
+        print('**************************************** Parsing Size ****************************************')
+        
         for method in ['join', 'merged', 'base']:
-            size_core, size_rest, total_time = self.__agg_size_by_config(f'{method}_rest.csv')
-            size_core.to_csv(os.path.join(self.size_dir, f'{method}_core.csv'), index=False)
-            size_rest.to_csv(os.path.join(self.size_dir, f'{method}_rest.csv'), index=False)
-            total_time.to_csv(os.path.join(self.size_dir, f'{method}_time.csv'), index=False)
+            size_path = os.path.join(self.size_dir, f'{method}_size.csv')
+            core_path = os.path.join(self.size_dir, f'{method}_core.csv')
+            rest_path = os.path.join(self.size_dir, f'{method}_rest.csv')
+            time_path = os.path.join(self.size_dir, f'{method}_time.csv')
+            
+            for derivative_path in [core_path, rest_path, time_path]:
+                if not os.path.exists(derivative_path) or os.path.getmtime(derivative_path) < os.path.getmtime(size_path): # derivative is older
+                    break
+            else: # no break
+                continue
+            
+            size_core, size_rest, total_time = self.__agg_size_by_config(size_path)
+            size_core.to_csv(core_path, index=False)
+            size_rest.to_csv(rest_path, index=False)
+            total_time.to_csv(time_path, index=False)
     
-    def __agg_size_by_config(self, size_filename: str):
+    def __agg_size_by_config(self, size_path: str):
         def parse_config(config):
             patten = r'([\.\d]+)\|(\d+)\|(\d+)\|(\d+)'
             matches = re.match(patten, config)
@@ -46,7 +60,7 @@ class Reaggregator:
                 config_df.append((dram, target, selectivity, included_columns, func(value)))
             return pd.DataFrame(config_df, columns=['dram', 'target', 'selectivity', 'included_columns', column_name])
         
-        size_df = pd.read_csv(os.path.join(self.size_dir, size_filename))
+        size_df = pd.read_csv(size_path)
         config_to_size_core = defaultdict(list) # config -> [size], list to be averaged
         config_to_size_rest = defaultdict(list) # config -> [size], list to be averaged
         config_to_total_time = defaultdict(defaultdict(list)) # config -> table -> [time], list to be averaged, tables will be summed
@@ -118,13 +132,19 @@ class Reaggregator:
             dfs.append(points_df)
         return tuple(dfs)
     
-    def __reagg_extra(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def __reagg_extra(self):
         def get_size(size_df: pd.DataFrame, x: int) -> float:
             row = size_df[size_df[args.type] == x]
             if row.empty:
                 print(f'No data for {args.type} = {x}')
                 exit(1)
             return row['size'].iloc[-1]
+        
+        def convert_to_df(rows: List[Tuple[int, int, float, float]]) -> pd.DataFrame:
+            rows.sort()
+            df = pd.DataFrame(rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
+            df.set_index('x', inplace=True)
+            return df
 
         type_to_rows = defaultdict(lambda: ([], [], []))
         
@@ -155,21 +175,12 @@ class Reaggregator:
         type_to_dfs = {}
         
         for type, (base_rows, join_rows, merged_rows) in type_to_rows.items():
-            join_rows.sort()
-            join_df = pd.DataFrame(join_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
-            join_df.set_index('x', inplace=True)
-            merged_rows.sort()
-            merged_df = pd.DataFrame(merged_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
-            merged_df.set_index('x', inplace=True)
-            base_rows.sort()
-            base_df = pd.DataFrame(base_rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
-            base_df.set_index('x', inplace=True)
-            type_to_dfs[type] = (join_df, merged_df, base_df)
+            type_to_dfs[type] = (convert_to_df(base_rows), convert_to_df(join_rows), convert_to_df(merged_rows))
         
         # Use the last set of dfs to plot size (tx_type independent)  
-        self.__plot_size(join_df, merged_df, base_df)
+        self.__plot_size(*type_to_dfs.values[-1])
         
-        return join_df, merged_df, base_df
+        return type_to_dfs
         
     def __plot_size(self, join_rows: pd.DataFrame, merged_rows: pd.DataFrame, base_rows: pd.DataFrame) -> None: # TODO: Test this
         if join_rows.index != merged_rows.index or merged_rows.index != base_rows.index:
