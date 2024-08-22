@@ -37,7 +37,7 @@ if __name__ == '__main__':
                 if file.endswith('sum.csv'):
                     file_paths.append(f'{dir}/{file}')
     
-    print(file_paths)
+    print(f"Found {len(file_paths)} directories with pattern {pattern}")
     if (len(file_paths) == 0):
         print(f'No directories found with pattern {pattern}. Exiting...')
         exit(1)

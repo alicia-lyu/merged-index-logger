@@ -29,7 +29,6 @@ class DataProcessor:
             self.write_col = 'SSTWrite(ms)/TX'
 
     def __load_data(self) -> None:
-        # TODO
         print(f'Loading data from {len(self.file_paths)} files...')
         files_to_remove = []
         for file in self.file_paths:
@@ -51,6 +50,7 @@ class DataProcessor:
         self.file_paths = [file for file in self.file_paths if file not in files_to_remove]
 
     def get_combined_data(self) -> pd.DataFrame:
+        print(f"**************************************** Getting combined data ****************************************")
         dfs = []
         min_rows = min([len(df) for df in self.data_frames])
         for df in self.data_frames:
@@ -58,7 +58,7 @@ class DataProcessor:
         return self.__merge_unique_settings_df(dfs)
 
     def get_agg(self) -> pd.DataFrame:
-
+        print(f"**************************************** Getting aggregated data ****************************************")
         # Find the stabilization point
         min_rows = min([len(df) for df in self.data_frames])
         if args.in_memory:
@@ -73,6 +73,7 @@ class DataProcessor:
                 for p, df in zip(self.file_paths, self.data_frames):
                     # print(p, df)
                     _, start = find_stabilization_point(30, 30, df[col])
+                    # TODO: Is it a good idea to only rely on read TXs for stabilization?
                     if args.in_memory is False and 'write' in p:
                         continue
                     elif 'scan' not in p:
@@ -90,7 +91,6 @@ class DataProcessor:
             aggs.append(agg)
             
         data = self.__merge_unique_settings_series(aggs)
-        print(data)
         return data
     
     def agg_each(self, index, stable_start, min_rows):
@@ -135,8 +135,8 @@ class DataProcessor:
             
             result.append(mean_val)
             
-        if 'scan' in p:
-            print(f'{p} tx sum over {len(tx)} seconds: {tx.sum()}')
+        # if 'scan' in p:
+        #     print(f'{p} tx sum over {len(tx)} seconds: {tx.sum()}')
         
         result = pd.Series(result, index=cols)
         
@@ -153,11 +153,11 @@ class DataProcessor:
                 unique_settings[parent_dir] = [i]
             else:
                 unique_settings[parent_dir].append(i)
+        print("Files grouped into unique settings:", unique_settings)
         return unique_settings
     
     def __merge_unique_settings_df(self, dfs: List[pd.DataFrame]) -> pd.DataFrame:
         unique_settings = self.__get_unique_settings()
-        print("Files grouped into unique settings:", unique_settings)
         merged_dfs = []
         for setting, indices in unique_settings.items():
             dfs_to_merge = [dfs[i].values for i in indices]
@@ -169,7 +169,6 @@ class DataProcessor:
     
     def __merge_unique_settings_series(self, series: List[pd.Series]) -> pd.DataFrame:
         unique_settings = self.__get_unique_settings()
-        print("Files grouped into unique settings:", unique_settings)
         merged_series = []
         for setting, indices in unique_settings.items():
             stacked = np.stack([series[i] for i in indices], axis=0)
@@ -178,5 +177,4 @@ class DataProcessor:
         result = pd.concat(merged_series, axis=1).T
         result.index = unique_settings.keys()
         result.columns = series[0].index
-        print(result)
         return result

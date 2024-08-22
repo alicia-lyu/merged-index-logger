@@ -57,10 +57,10 @@ class Args():
         suffix_label = matches.group(1)
         suffix_val = int(matches.group(2))
         if suffix_label == '-col':
-            assert(self.type == 'included-columns')
+            assert(self.type == 'selectivity')
             return 'included_columns', suffix_val
         elif suffix_label == '-sel':
-            assert(self.type == 'included_columns')
+            assert(self.type == 'included-columns')
             return 'selectivity', suffix_val
         else:
             raise ValueError(f'Invalid suffix: {self.suffix}')
@@ -116,22 +116,24 @@ class Args():
         
         match self.type:
             case 'read':
-                pattern = common_prefix + r'read' + self.suffix + r'$'
+                pattern = common_prefix + r'read'
             case 'write':
-                pattern = common_prefix + r'write' + self.suffix + r'$'
+                pattern = common_prefix + r'write'
             case 'scan': # Throughput too low. Only plot aggregates.
-                pattern = common_prefix + r'scan' + self.suffix + r'$'
+                pattern = common_prefix + r'scan'
             case 'all-tx':
-                pattern = common_prefix + r'(read-locality|read|write|scan)' + self.suffix + r'$'
+                pattern = common_prefix + r'(read-locality|read|write|scan)'
             case 'update-size':
-                pattern = common_prefix + r'write(-size\d+)?$'
+                pattern = common_prefix + r'write(-size\d+)?'
             case 'selectivity': # Too many stats. Only plot aggregates.
-                pattern = common_prefix + r'(read-locality|read|write|scan)(-sel\d+)?$'
+                pattern = common_prefix + r'(read-locality|read|write|scan)(-sel\d+)?'
             case 'included-columns':
-                pattern = common_prefix + r'(read-locality|read|write|scan)(-col\d+)?$'
+                pattern = common_prefix + r'(read-locality|read|write|scan)(-col\d+)?'
             case _:
                 raise ValueError(f'Invalid type: {self.type}')
-            
+        
+        pattern += self.suffix + r'$'
+        
         return pattern
     
     def parse_path(self, path: str):

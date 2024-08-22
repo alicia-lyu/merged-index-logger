@@ -77,7 +77,7 @@ class AggPlotter:
             df = self.__create_df_size(scatter_points)
             ax.plot(df['size'], df['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=2)
             for row in df.itertuples():
-                self.__add_text(ax, row.size, row.y, i, f'{row.x}%')
+                self.__add_text(ax, row.size, row.y, i, row.x)
             
         ax.set_xlabel('Space Consumption (GB)')
         ax.set_ylabel(f'{col}')
@@ -123,6 +123,7 @@ class AggPlotter:
     def __plot(self, col: str, tp: str, base_scatter_points: List[Tuple], join_scatter_points: List[Tuple], merged_scatter_points: List[Tuple]) -> None:
         
         print(f'**************************************** Plotting {col} for {tp} ****************************************')
+        print(f'Base: {base_scatter_points}')
         print(f'Join: {join_scatter_points}')
         print(f'Merged: {merged_scatter_points}')
         
@@ -192,7 +193,19 @@ class AggPlotter:
         ax.set_xlim(tick_positions[0] - tick_width * 0.5, tick_positions[-1] + tick_width * 0.5)
         ax.legend()
         
-    def __get_text(self, y: float) -> str:
+    def __get_text(self, t, y: float) -> str:
+        if t is not None:
+            if args.type == 'selectivity':
+                return f'{t}%'
+            elif args.type == 'included-columns':
+                if t == 0:
+                    return 'None'
+                elif t == 1:
+                    return 'All'
+                elif t == 2:
+                    return 'Selected'
+                else:
+                    raise ValueError(f'Invalid value for included-columns: {t}')
         if y > 1e6 or y < 0.05:
             return f'{y:.2e}'
         elif y > 1e3:
@@ -202,15 +215,18 @@ class AggPlotter:
         else:
             return f'{y:.2f}'
     
-    def __add_text(self, ax: plt.Axes, x: float, y, method: int, t: str = None) -> None:
-        h_offset = bool(method) * (method - 1.5) * 0.2
-        v_offset = (bool(method) - 0.5) * 0.2
+    def __add_text(self, ax: plt.Axes, x: float, y, method: int, t = None) -> None:
+        h_offset_list = [0, -0.1, 0.1]
+        ha_list = ['center', 'right', 'left']
+        v_offset_list = [-0.1, 0.1, 0.1]
+        va_list = ['top', 'bottom', 'bottom']
         # join(1)      merged(2)
+        #           o
         #        base(0)
-        offset_transform = transforms.ScaledTranslation(h_offset, v_offset, ax.figure.dpi_scale_trans)
+        offset_transform = transforms.ScaledTranslation(h_offset_list[method], v_offset_list[method], ax.figure.dpi_scale_trans)
         ax.text(
-            x, y, t if t is not None else self.__get_text(y), color=self.colors[method], 
-            fontsize=8, ha='right' if method == 0 else 'left', va='center', 
+            x, y, self.__get_text(t, y), color=self.colors[method], 
+            fontsize=8, ha=ha_list[method], va=va_list[method],
             bbox=dict(facecolor=self.colors[method], alpha=0.3, edgecolor='none', boxstyle='square'),
             transform=ax.transData + offset_transform)
         
@@ -223,11 +239,10 @@ class AggPlotter:
         ax1.set_ylim(upper, vmax)
         
         ax1_yticks = ax1.get_yticks()
-        print(f'ax1_yticks: {ax1_yticks}')
         if ax1_yticks[0] == 0: # Upper broken axis' minimum is 0. This happens when the largest value dominate the scale of upper axis.
             ax1.set_yscale('log')
             ax1.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
-            print("ax1_yticks: ", ax1.get_yticks())
+            print("ax1_yticks started from 0, reset to ", ax1.get_yticks())
         
         # Add text to the right ax
         for base_row, join_row, merged_row in zip(base_scatter_points.itertuples(), join_scatter_points.itertuples(), merged_scatter_points.itertuples()):

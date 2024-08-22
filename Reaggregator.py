@@ -23,8 +23,6 @@ class Reaggregator:
         self.__parse_size()
         
     def __parse_size(self):
-        print('**************************************** Parsing Size ****************************************')
-        
         for method in ['join', 'merged', 'base']:
             size_path = os.path.join(self.size_dir, f'{method}_size.csv')
             core_path = os.path.join(self.size_dir, f'{method}_core.csv')
@@ -35,8 +33,12 @@ class Reaggregator:
                 if not os.path.exists(derivative_path) or os.path.getmtime(derivative_path) < os.path.getmtime(size_path): # derivative is older
                     break
             else: # no break
-                continue
+                code_path = os.path.realpath(__file__)
+                if os.path.getmtime(code_path) < os.path.getmtime(size_path): # code is older
+                    print(f'{method} size is up-to-date')
+                    continue
             
+            print(f'Parsing Size for {method}...')
             size_core, size_rest, total_time = self.__agg_size_by_config(size_path)
             size_core.to_csv(core_path, index=False)
             size_rest.to_csv(rest_path, index=False)
@@ -88,6 +90,7 @@ class Reaggregator:
         return size_core, size_rest, total_time
 
     def __call__(self) -> pd.DataFrame:
+        print(f'Reaggregating for {args.type}...')
         if args.type == 'all-tx':
             return self.__reagg_all_tx()
         elif args.type in ['selectivity', 'included-columns']:
@@ -135,7 +138,8 @@ class Reaggregator:
     def __reagg_extra(self):
         def get_size(size_df: pd.DataFrame, x: int) -> float:
             suffix_label, suffix_val = args.get_filter_for_size_df()
-            row = size_df[(size_df[args.type] == x) & (size_df[suffix_label] == suffix_val)]
+            size_df_key = args.type.replace('-', '_')
+            row = size_df[(size_df[size_df_key] == x) & (size_df[suffix_label] == suffix_val)]
             if row.empty:
                 print(f'No data for {args.type} = {x}')
                 exit(1)
@@ -143,8 +147,8 @@ class Reaggregator:
         
         def convert_to_df(rows: List[Tuple[int, int, float, float]]) -> pd.DataFrame:
             rows.sort()
-            df = pd.DataFrame(rows, columns=['x', 'i_col', 'core_size', 'rest_size'])
-            df.set_index('x', inplace=True)
+            df = pd.DataFrame(rows, columns=["x", 'i_col', 'core_size', 'rest_size'])
+            df.set_index("x", inplace=True)
             return df
 
         type_to_rows = defaultdict(lambda: ([], [], []))
@@ -191,7 +195,7 @@ class Reaggregator:
             print(f'Base:\n{base_rows.index}')
             exit(1)
         
-        print('**************************************** Plotting Size ****************************************')
+        print(f'**************************************** Plotting Size for extra {args.type} ****************************************')
         print('Base:', base_rows)
         print('Join:', join_rows)
         print('Merged:', merged_rows)
@@ -201,18 +205,18 @@ class Reaggregator:
         join_x = range(len(join_rows.index))
         merged_x = [x + bar_width for x in range(len(merged_rows.index))]
         
-        fig, ax = plt.subplots(figsize=(4.5, 4))
+        fig, ax = plt.subplots(figsize=(len(base_rows.index) * bar_width * 6, 4))
         
         for df, x, color in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors[:3]):
             ax.bar(x, df['core_size'], width=bar_width, color=color, edgecolor='black')
-            ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch='x', bottom=df['core_size'], edgecolor='black')
+            ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch="xx", bottom=df['core_size'], edgecolor='black')
             
         ax.set_xticks(range(len(base_rows.index)), base_rows.index)
         ax.set_xlabel(args.get_xlabel())
         ax.set_ylabel('Size (GB)')
         
         color_patches = [mpatches.Patch(color=color, label=label) for color, label in zip(self.colors[:3], ['Base', 'Join', 'Merged'])]
-        hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', 'x'], ['Core', 'Rest'])]
+        hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', "xx"], ['Core', 'Rest'])]
         
         combined_handles = color_patches + hatch_patches
         ax.legend(handles=combined_handles)
