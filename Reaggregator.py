@@ -11,7 +11,7 @@ import numpy as np
 Reaggregate the Agg DataFrame (2D, index=source, columns=metrics) into
 1. all-tx: 3 DataFrames (2D, index=tx_type, columns=[i_col]), one for join, one for merged, one for base.
 2. An extra-x: 3 DataFrames (2D, index=extra-x, columns=[i_col, core_size, rest_size]), one for join, one for merged, one for base.
-Each DataFrame can be used for plotting given a metric type: x = index, y = agg_data.loc[metric, i_col].
+Each DataFrame can be used for plotting given a metric type: x = index, y = agg_data.iloc[i_col][metric]
 '''
 
 class Reaggregator:

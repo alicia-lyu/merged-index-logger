@@ -1,9 +1,38 @@
 import pandas as pd
-from typing import Callable, List, Tuple
+from typing import List, Tuple
 import os
 import numpy as np
-from SeriesPlotter import find_stabilization_point
 from args import args
+
+def find_stabilization_point(discarded_size, window_size, series: pd.Series) -> Tuple[float, int]:
+    series.replace([np.inf, -np.inf], np.nan, inplace=True)
+    series = series.dropna(inplace=False)
+    series = series.iloc[:min(len(series), 240)] # ATTN: Hardcoded
+    if len(series) > discarded_size:
+        discarded = min(discarded_size, len(series) // 2)
+        series = series[discarded:] # Remove the first half of the series
+    else:
+        discarded = 0
+        
+    norm_series = (series - series.min()) / (series.max() - series.min()) # Normalize the series
+    rolling_var = norm_series.rolling(window=window_size).var()
+    variance_threshold = 0.1
+
+    for i in range(window_size, len(rolling_var)):
+        last_N = len(rolling_var) - i
+        if all(rolling_var.dropna().tail(last_N) < variance_threshold):
+            # print(f'Stabilized after window starting from {i - window_size + discarded}')
+            break
+    else:
+        i = max(0, len(rolling_var) - window_size)
+        print(f'No stabilization point found, using the last window at {i + discarded}')
+        mean = series[i:].mean()
+        return mean, i + discarded
+    
+    i = max(0, i - window_size)
+    mean = series[i:].mean()
+    # print(f"Mean after stabilization: {mean}")
+    return mean, i + discarded
 
 '''
 Read all csv files of time series data and use one of the following methods to process the data:

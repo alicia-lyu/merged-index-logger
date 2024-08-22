@@ -108,27 +108,25 @@ class Args():
         return dir_name
             
     def format_pattern(self) -> str:
-        common_prefix = r'(join|merged|base)-' + f'({self.dram_gib:.1f}|{int(self.dram_gib):d})' + f'-{self.target_gib}-'
+        pattern = r'(join|merged|base)-' + f'({self.dram_gib:.1f}|{int(self.dram_gib):d})' + f'-{self.target_gib}-'
         if self.rocksdb:
-            common_prefix = 'rocksdb_' + common_prefix
-        
-        pattern: str = ''
+            pattern = 'rocksdb_' + pattern
         
         match self.type:
             case 'read':
-                pattern = common_prefix + r'read'
+                pattern += r'read'
             case 'write':
-                pattern = common_prefix + r'write'
+                pattern += r'write'
             case 'scan': # Throughput too low. Only plot aggregates.
-                pattern = common_prefix + r'scan'
+                pattern += r'scan'
             case 'all-tx':
-                pattern = common_prefix + r'(read-locality|read|write|scan)'
+                pattern += r'(read-locality|read|write|scan)'
             case 'update-size':
-                pattern = common_prefix + r'write(-size\d+)?'
+                pattern += r'write(-size\d+)?'
             case 'selectivity': # Too many stats. Only plot aggregates.
-                pattern = common_prefix + r'(read-locality|read|write|scan)(-sel\d+)?'
+                pattern += r'(read-locality|read|write|scan)(-sel\d+)?'
             case 'included-columns':
-                pattern = common_prefix + r'(read-locality|read|write|scan)(-col\d+)?'
+                pattern += r'(read-locality|read|write|scan)(-col\d+)?'
             case _:
                 raise ValueError(f'Invalid type: {self.type}')
         
