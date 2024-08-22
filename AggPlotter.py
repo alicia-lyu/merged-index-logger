@@ -203,10 +203,10 @@ class AggPlotter:
             return f'{y:.2f}'
     
     def __add_text(self, ax: plt.Axes, x: float, y, method: int, t: str = None) -> None:
-        h_offset = (method - 1) * 0.1
-        v_offset = (0.5 - method % 2) * 0.2
-        # base(0)      merged(2)
-        #        join(1)
+        h_offset = bool(method) * (method - 1.5) * 0.2
+        v_offset = (bool(method) - 0.5) * 0.2
+        # join(1)      merged(2)
+        #        base(0)
         offset_transform = transforms.ScaledTranslation(h_offset, v_offset, ax.figure.dpi_scale_trans)
         ax.text(
             x, y, t if t is not None else self.__get_text(y), color=self.colors[method], 

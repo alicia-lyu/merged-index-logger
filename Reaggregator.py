@@ -134,7 +134,8 @@ class Reaggregator:
     
     def __reagg_extra(self):
         def get_size(size_df: pd.DataFrame, x: int) -> float:
-            row = size_df[(size_df[args.type] == x) & (size_df["included_columns"] == 1)] # ATTN: Hardcoded
+            suffix_label, suffix_val = args.get_filter_for_size_df()
+            row = size_df[(size_df[args.type] == x) & (size_df[suffix_label] == suffix_val)]
             if row.empty:
                 print(f'No data for {args.type} = {x}')
                 exit(1)

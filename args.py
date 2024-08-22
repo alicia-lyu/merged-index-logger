@@ -1,7 +1,7 @@
 from typing import Tuple
 import os, re
 
-DEFAULT_DRAM_GIB = 1
+DEFAULT_DRAM_GIB = 0.3
 DEFAULT_TARGET_GIB = 4
 DEFAULT_TYPE = 'all-tx'
 DEFAULT_SUFFIX = ''
@@ -40,6 +40,30 @@ class Args():
         else:
             raise ValueError(f'Invalid type: {self.type}')
         return default_val, suffix
+    
+    def get_filter_for_size_df(self):
+        if self.suffix == '':
+            if self.type == 'selectivity':
+                return 'included_columns', 1
+            elif self.type == 'included-columns':
+                return 'selectivity', 19
+            else:
+                raise ValueError(f'Invalid type: {self.type} to call get_filter_for_size_df')
+            
+        matches = re.match(r'([^\d]+)(\d+)', self.suffix)
+        if matches is None or len(matches.groups()) != 2:
+            raise ValueError(f'Invalid suffix: {self.suffix}')
+        
+        suffix_label = matches.group(1)
+        suffix_val = int(matches.group(2))
+        if suffix_label == '-col':
+            assert(self.type == 'included-columns')
+            return 'included_columns', suffix_val
+        elif suffix_label == '-sel':
+            assert(self.type == 'included_columns')
+            return 'selectivity', suffix_val
+        else:
+            raise ValueError(f'Invalid suffix: {self.suffix}')
     
     def get_title(self) -> str:
         if self.type == 'selectivity':
