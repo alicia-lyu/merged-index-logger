@@ -5,6 +5,7 @@ from typing import List, Tuple
 import matplotlib.pyplot as plt
 from args import args
 from Reaggregator import Reaggregator
+import matplotlib.patches as mpatches
 
 class AggPlotter:
     def __init__(self, agg_data: pd.DataFrame, fig_dir: str) -> None:
@@ -12,7 +13,7 @@ class AggPlotter:
         self.fig_dir: str = fig_dir
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
         self.markers: List[str] = ['x', '+', 'o', 's', 'D', 'v']
-        self.labels: List[str] = ['Base', 'Join', 'Merged']
+        self.labels: List[str] = ['BT', 'MJ', 'MIdx']
     
     def plot(self) -> Tuple[dict, dict]:
         if args.type == 'all-tx':
@@ -79,9 +80,13 @@ class AggPlotter:
             for row in df.itertuples():
                 self.__add_text(ax, row.size, row.y, i, row.x)
             
-        ax.set_xlabel('Space Consumption (GB)')
+        ax.set_xlabel('Core Size (GB)')
         ax.set_ylabel(f'{col}')
         self.__set_locator_by_col(ax, col)
+        # text_patch = mpatches.Patch(color='gray', alpha=0.3, edgecolor=None, label='SO%' if args.type == 'selectivity' else 'Incl. Cols')
+        # handles, labels = ax.get_legend_handles_labels()
+        # handles.append(text_patch)
+        # ax.legend(handles=handles)
         ax.legend()
         
         fig.tight_layout()
@@ -135,8 +140,11 @@ class AggPlotter:
         
         breakpoint_ret = self.__find_breakpoints(base_scatter_points, join_scatter_points, merged_scatter_points)
         
-        # All TX types except Point Query with an extra column
-        all_tx_mask = join_scatter_points.index != 'Point Query\n(with an extra column)'
+        if tp is None:
+            all_tx_mask = ['extra' not in x for x in join_scatter_points['x']]
+            assert(sum(all_tx_mask) == 3)
+        else:
+            all_tx_mask = [True] * len(base_scatter_points)
         
         if breakpoint_ret is False:
             fig, ax = plt.subplots(1, 1, figsize=(4.5, 4))
@@ -165,7 +173,8 @@ class AggPlotter:
         # Compare two point queries: with or without an extra column
         if tp is None: # TX Type is x-axis
             fig_read, ax_read = plt.subplots(1, 1, figsize=(4, 4))
-            pq_mask = join_scatter_points.index.str.contains('Point Query')
+            pq_mask = ['Point Lookup' in x for x in join_scatter_points['x']]
+            assert(sum(pq_mask) == 2)
             self.__plot_axis(ax_read, col, tp,
                                 base_scatter_points[pq_mask],
                                 join_scatter_points[pq_mask],
@@ -178,10 +187,15 @@ class AggPlotter:
     def __plot_axis(self, ax: plt.Axes, col: str, tp: str, base_scatter_points: pd.DataFrame, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame, broken: bool = False) -> None:
         for i, scatter_points in enumerate([base_scatter_points, join_scatter_points, merged_scatter_points]):
             ax.scatter(scatter_points['x'], scatter_points['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=2)
-            if not broken:
-                for row in scatter_points.itertuples():
-                    self.__add_text(ax, row.x, row.y, i)
-            # else defer to __plot_broken_axis
+
+        if not broken:
+            for base_row, join_row, merged_row in zip(base_scatter_points.itertuples(), join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
+                ordered_y = [base_row.y, join_row.y, merged_row.y]
+                ordered_y.sort()
+                for i, row in enumerate([base_row, join_row, merged_row]):
+                    newOrd = ordered_y.index(row.y)
+                    self.__add_text(ax, row.x, row.y, i, None, newOrd)
+                # else defer to __plot_broken_axis
         
         ax.set_xlabel(args.get_xlabel())
         
@@ -215,7 +229,7 @@ class AggPlotter:
         else:
             return f'{y:.2f}'
     
-    def __add_text(self, ax: plt.Axes, x: float, y, method: int, t = None) -> None:
+    def __add_text(self, ax: plt.Axes, x: float, y, method: int, t = None, newOrd = None) -> None:
         h_offset_list = [0, -0.1, 0.1]
         ha_list = ['center', 'right', 'left']
         v_offset_list = [-0.1, 0.1, 0.1]
@@ -223,10 +237,12 @@ class AggPlotter:
         # join(1)      merged(2)
         #           o
         #        base(0)
-        offset_transform = transforms.ScaledTranslation(h_offset_list[method], v_offset_list[method], ax.figure.dpi_scale_trans)
+        if newOrd is None:
+            newOrd = method
+        offset_transform = transforms.ScaledTranslation(h_offset_list[newOrd], v_offset_list[newOrd], ax.figure.dpi_scale_trans)
         ax.text(
             x, y, self.__get_text(t, y), color=self.colors[method], 
-            fontsize=8, ha=ha_list[method], va=va_list[method],
+            fontsize=8, ha=ha_list[newOrd], va=va_list[newOrd],
             bbox=dict(facecolor=self.colors[method], alpha=0.3, edgecolor='none', boxstyle='square'),
             transform=ax.transData + offset_transform)
         
@@ -235,7 +251,7 @@ class AggPlotter:
         self.__plot_axis(ax2, col, tp, base_scatter_points, join_scatter_points, merged_scatter_points, True)
 
         ax2.set_ylim(-lower * 0.05, lower)
-        vmax = max(join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1
+        vmax = max(base_scatter_points['y'].max(), join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1
         ax1.set_ylim(upper, vmax)
         
         ax1_yticks = ax1.get_yticks()
@@ -246,7 +262,10 @@ class AggPlotter:
         
         # Add text to the right ax
         for base_row, join_row, merged_row in zip(base_scatter_points.itertuples(), join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
+            ordered_y = [base_row.y, join_row.y, merged_row.y]
+            ordered_y.sort()
             for i, row in enumerate([base_row, join_row, merged_row]):
+                newOrd = ordered_y.index(row.y)
                 if row.y < lower:
                     ax = ax2
                 elif row.y > upper:
@@ -254,7 +273,7 @@ class AggPlotter:
                 else:
                     print(f'Row {row} is in the middle.')
                     exit(1)
-                self.__add_text(ax, row.x, row.y, i)
+                self.__add_text(ax, row.x, row.y, i, None, newOrd)
         
         # Tick ax1's x axis at the top and ax2's x axis at the bottom
         ax1.spines.bottom.set_visible(False)

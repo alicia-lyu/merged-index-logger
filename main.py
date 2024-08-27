@@ -1,6 +1,5 @@
 from typing import Tuple
 from DataProcessor import DataProcessor
-from SeriesPlotter import SeriesPlotter
 from AggPlotter import AggPlotter
 import os, argparse, re
 import args
@@ -45,11 +44,6 @@ if __name__ == '__main__':
     dir_name = args.args.get_dir()
     
     processor = DataProcessor(file_paths)
-        
-    if args.args.type == 'read' or args.args.type == 'write' or args.args.type == 'update-size' and len(file_paths) < 6:
-        combined_data = processor.get_combined_data()    
-        plotter = SeriesPlotter(combined_data, dir_name)
-        plotter.plot_all_charts()
 
     if args.args.type in ['read', 'write', 'scan']:
         print(f'For aggregates, use --type all-tx')

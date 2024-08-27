@@ -78,6 +78,8 @@ class Reaggregator:
             elif row['table(s)'] == 'orderline_secondary':
                 config_to_size_rest[row['config']][-1] += row['size']
                 continue
+            elif row['table(s)'] == 'total':
+                continue
             else:
                 raise ValueError(f'Invalid table name: {row["table(s)"]}')
                 
@@ -200,12 +202,12 @@ class Reaggregator:
         print('Join:', join_rows)
         print('Merged:', merged_rows)
             
-        bar_width = 0.3
+        bar_width = 0.2
         base_x = [x - bar_width for x in range(len(base_rows.index))]
         join_x = range(len(join_rows.index))
         merged_x = [x + bar_width for x in range(len(merged_rows.index))]
         
-        fig, ax = plt.subplots(figsize=(len(base_rows.index) * bar_width * 6, 4))
+        fig, ax = plt.subplots(figsize=(len(base_rows.index) * bar_width * 6, 3))
         
         for df, x, color in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors[:3]):
             ax.bar(x, df['core_size'], width=bar_width, color=color, edgecolor='black')
@@ -215,8 +217,8 @@ class Reaggregator:
         ax.set_xlabel(args.get_xlabel())
         ax.set_ylabel('Size (GB)')
         
-        color_patches = [mpatches.Patch(color=color, label=label) for color, label in zip(self.colors[:3], ['Base', 'Join', 'Merged'])]
-        hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', "xx"], ['Core', 'Rest'])]
+        color_patches = [mpatches.Patch(color=color, label=label) for color, label in zip(self.colors[:3], ['BT', 'MJ', 'MIdx'])]
+        hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', "xx"], ['Core', 'Supporting'])]
         
         combined_handles = color_patches + hatch_patches
         ax.legend(handles=combined_handles)

@@ -10,6 +10,11 @@ clean-logs:
 	rm -rf join*
 	rm -rf merged*
 
+clean-size:
+	mkdir -p archive
+	tar -czvf "archive/size-logs-$(TIMESTAMP).tar.gz" *mixed-98-2-0*
+	rm -rf *mixed-98-2-0*
+
 clean-plots:
 	mkdir -p archive
 	tar -czvf "archive/plots-$(TIMESTAMP).tar.gz" plots*
@@ -17,14 +22,22 @@ clean-plots:
 
 clean-all: clean-logs clean-plots
 
-in-memory:
-	python3 main.py --dram_gib=16 --type=all-tx --suffix=-sel19 --in_memory=True
-
-selectivity:
-	python3 main.py --dram_gib=0.3 --type=selectivity
+rocksdb := 0
 
 same-size:
-	python3 main.py --dram_gib=0.3 --type=all-tx --suffix=-sel19
+	python3 main.py --type=all-tx --suffix=-sel19 --rocksdb=$(rocksdb)
+
+in-memory:
+	python3 main.py --type=all-tx --dram=16 --suffix=-sel19 --rocksdb=$(rocksdb)
+
+selectivity-col%:
+	python3 main.py --type=selectivity --suffix=-col$* --rocksdb=$(rocksdb)
+
+selectivity:
+	python3 main.py --type=selectivity --rocksdb=$(rocksdb)
+
+rocksdb-%:
+	make $* rocksdb=1
 
 # Directory pattern that you want to check
 DIRS := $(wildcard */)

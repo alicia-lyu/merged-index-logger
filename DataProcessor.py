@@ -103,9 +103,7 @@ class DataProcessor:
                     # print(p, df)
                     _, start = find_stabilization_point(30, 30, df[col])
                     # TODO: Is it a good idea to only rely on read TXs for stabilization?
-                    if args.in_memory is False and 'write' in p:
-                        continue
-                    elif 'scan' not in p:
+                    if 'write' not in p and 'scan' not in p:
                         if start > 200:
                             print(f'File {p} has a stabilization point at {start}. Skipping...')
                             continue
