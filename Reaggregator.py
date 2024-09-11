@@ -19,11 +19,15 @@ class Reaggregator:
         self.agg_data: pd.DataFrame = agg_data
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        self.size_dir = os.path.join(current_dir, 'size_rocksdb' if args.rocksdb else 'size')
+        size_dir_base = 'size_rocksdb' if args.rocksdb else 'size'
+        size_dir_base += '_outer' if args.outer_join else ''
+        self.size_dir = os.path.join(current_dir, size_dir_base)
+        self.method_names = ['Base Tables', 'Materialized Join', 'Merged Index']
+        self.method_names_short = ['base', 'join', 'merged']
         self.__parse_size()
         
     def __parse_size(self):
-        for method in ['join', 'merged', 'base']:
+        for method in self.method_names_short:
             size_path = os.path.join(self.size_dir, f'{method}_size.csv')
             core_path = os.path.join(self.size_dir, f'{method}_core.csv')
             rest_path = os.path.join(self.size_dir, f'{method}_rest.csv')
@@ -102,7 +106,7 @@ class Reaggregator:
             exit(1)
             
     def __reagg_all_tx(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        
+        self.__plot_size_single()
         join_rows = []
         merged_rows = []
         base_rows = []
@@ -211,16 +215,37 @@ class Reaggregator:
         
         for df, x, color in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors[:3]):
             ax.bar(x, df['core_size'], width=bar_width, color=color, edgecolor='black')
-            ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch="xx", bottom=df['core_size'], edgecolor='black')
+            # ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch="xx", bottom=df['core_size'], edgecolor='black')
             
         ax.set_xticks(range(len(base_rows.index)), base_rows.index)
         ax.set_xlabel(args.get_xlabel())
         ax.set_ylabel('Size (GB)')
         
-        color_patches = [mpatches.Patch(color=color, label=label) for color, label in zip(self.colors[:3], ['BT', 'MJ', 'MIdx'])]
-        hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', "xx"], ['Core', 'Supporting'])]
+        color_patches = [mpatches.Patch(color=color, label=label) for color, label in zip(self.colors[:3], self.method_names)]
+        # hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', "xx"], ['Core', 'Supporting'])]
         
-        combined_handles = color_patches + hatch_patches
+        combined_handles = color_patches
+            # + hatch_patches
         ax.legend(handles=combined_handles)
         fig.tight_layout()
         fig.savefig(os.path.join(args.get_dir(), f'{args.type}_size.png'), dpi=300)
+        
+    def __plot_size_single(self):
+        def get_size(size_df: pd.DataFrame) -> float:
+            row = size_df[(size_df['selectivity'] == 100) & (size_df['included_columns'] == 1)]
+            if row.empty:
+                print(f'No data for {size_df}')
+                exit(1)
+            return row['size'].iloc[-1]
+        fig, ax = plt.subplots(figsize=(3, 4))
+        for i, method in enumerate(['base', 'join', 'merged']):
+            core_size_filename = f"{method}_core.csv"
+            core_size_df = pd.read_csv(os.path.join(self.size_dir, core_size_filename))
+            core_size = get_size(core_size_df)
+            ax.bar(i, core_size, color=self.colors[i], label=self.method_names[i])
+            
+        ax.set_xticks([0, 1, 2], self.method_names, rotation=60, ha='right')
+        ax.set_ylabel('Size (GB)')
+        fig.tight_layout()
+        fig.savefig(os.path.join(args.get_dir(), f'size.png'), dpi=300)
+            

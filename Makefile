@@ -5,15 +5,23 @@ tar-all:
 
 clean-logs:
 	mkdir -p archive
-	tar -czvf "archive/join-logs-$(TIMESTAMP).tar.gz" join*
-	tar -czvf "archive/merged-logs-$(TIMESTAMP).tar.gz" merged*
+	-tar -czvf "archive/join-logs-$(TIMESTAMP).tar.gz" join*
+	-tar -czvf "archive/rocksdb_join-logs-$(TIMESTAMP).tar.gz" join*
+	-tar -czvf "archive/merged-logs-$(TIMESTAMP).tar.gz" merged*
+	-tar -czvf "archive/rocksdb_merged-logs-$(TIMESTAMP).tar.gz" merged*
+	-tar -czvf "archive/base-logs-$(TIMESTAMP).tar.gz" base*
+	-tar -czvf "archive/rocksdb_base-logs-$(TIMESTAMP).tar.gz" base*
 	rm -rf join*
 	rm -rf merged*
+	rm -rf base*
+	rm -rf rocksdb_join*
+	rm -rf rocksdb_merged*
+	rm -rf rocksdb_base*
 
 clean-size:
 	mkdir -p archive
-	tar -czvf "archive/size-logs-$(TIMESTAMP).tar.gz" *mixed-98-2-0*
-	rm -rf *mixed-98-2-0*
+	tar -czvf "archive/size-$(TIMESTAMP).tar.gz" size*
+	rm -rf size*
 
 clean-plots:
 	mkdir -p archive
@@ -22,7 +30,7 @@ clean-plots:
 
 clean-all: clean-logs clean-plots
 
-rocksdb := 0
+rocksdb := ''
 
 same-size:
 	python3 main.py --type=all-tx --suffix=-sel19 --rocksdb=$(rocksdb)

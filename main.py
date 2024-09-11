@@ -20,6 +20,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--rocksdb', type=bool, required=False, help='Use RocksDB', default=args.DEFAULT_ROCKSDB
     )
+    parser.add_argument(
+        '--outer_join', type=bool, required=False, help='Use outer join', default=False
+    )
     
     # Parse the arguments
     parser.parse_args(namespace=args.args)

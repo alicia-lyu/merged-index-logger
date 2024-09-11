@@ -16,7 +16,7 @@ class Args():
         self.suffix: str = DEFAULT_SUFFIX
         self.in_memory: bool = DEFAULT_IN_MEMORY
         self.rocksdb: bool = DEFAULT_ROCKSDB
-        
+        self.outer_join: bool = False
         self.pattern = None
     
     def get_pattern(self) -> str:
@@ -99,6 +99,8 @@ class Args():
             
     def get_dir(self) -> str:
         dir_name = f'plots-{self.dram_gib}-{self.target_gib}-{self.type}{self.suffix}'
+        if self.outer_join:
+            dir_name += '-outer'
         if self.in_memory:
             dir_name += '-in-memory' 
         if self.rocksdb:
@@ -119,16 +121,23 @@ class Args():
                 pattern += r'write'
             case 'scan': # Throughput too low. Only plot aggregates.
                 pattern += r'scan'
-            case 'all-tx':
-                pattern += r'(read-locality|read|write|scan)'
             case 'update-size':
-                pattern += r'write(-size\d+)?'
-            case 'selectivity': # Too many stats. Only plot aggregates.
-                pattern += r'(read-locality|read|write|scan)(-sel\d+)?'
+                pattern += r'write'
+            case _: # all-tx, selectivity, included-columns
+                pattern += r'(read-locality|read|write|scan)'
+        
+        if self.outer_join:
+            pattern += r'-outer'
+            
+        match self.type:
+            case 'update-size':
+                pattern += r'(-size\d+)?'
+            case 'selectivity':
+                pattern += r'(-sel\d+)?'
             case 'included-columns':
-                pattern += r'(read-locality|read|write|scan)(-col\d+)?'
-            case _:
-                raise ValueError(f'Invalid type: {self.type}')
+                pattern += r'(-col\d+)?'
+            case _: # all-tx, read, write, scan
+                pass
         
         pattern += self.suffix + r'$'
         

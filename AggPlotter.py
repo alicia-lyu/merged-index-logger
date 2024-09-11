@@ -13,7 +13,7 @@ class AggPlotter:
         self.fig_dir: str = fig_dir
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
         self.markers: List[str] = ['x', '+', 'o', 's', 'D', 'v']
-        self.labels: List[str] = ['BT', 'MJ', 'MIdx']
+        self.labels: List[str] = ['Base Tables', 'Materialized Join', 'Merged Index']
     
     def plot(self) -> Tuple[dict, dict]:
         if args.type == 'all-tx':
@@ -112,7 +112,7 @@ class AggPlotter:
         breakpoint_idx = np.argmax(diffs)
         lower = sorted_values[breakpoint_idx]
         upper = sorted_values[breakpoint_idx + 1]
-        lower = max(lower * 1.2, 1)
+        lower = max(lower * 1.2, 0.1)
         upper = max((upper + lower) / 2, 
                     upper - max(sorted_values.max() - upper, upper) * 0.2
                     )
