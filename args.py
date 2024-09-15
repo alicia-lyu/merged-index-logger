@@ -41,29 +41,22 @@ class Args():
             raise ValueError(f'Invalid type: {self.type}')
         return default_val, suffix
     
-    def get_filter_for_size_df(self):
+    def get_filter_for_size_df(self): # Based on suffix
         if self.suffix == '':
             if self.type == 'selectivity':
                 return 'included_columns', 1
             elif self.type == 'included-columns':
-                return 'selectivity', 19
-            else:
+                return 'selectivity', 100
+            elif self.type != 'all-tx':
                 raise ValueError(f'Invalid type: {self.type} to call get_filter_for_size_df')
+
+        if self.type == 'all-tx':
+            filters = {'selectivity': 100, 'included_columns': 1}
+            suffix_text, suffix_val = self.get_suffix_val()
+            filters[suffix_text] = suffix_val
+            return ('selectivity', filters['selectivity']),('included_columns', filters['included_columns'])
             
-        matches = re.match(r'([^\d]+)(\d+)', self.suffix)
-        if matches is None or len(matches.groups()) != 2:
-            raise ValueError(f'Invalid suffix: {self.suffix}')
-        
-        suffix_label = matches.group(1)
-        suffix_val = int(matches.group(2))
-        if suffix_label == '-col':
-            assert(self.type == 'selectivity')
-            return 'included_columns', suffix_val
-        elif suffix_label == '-sel':
-            assert(self.type == 'included-columns')
-            return 'selectivity', suffix_val
-        else:
-            raise ValueError(f'Invalid suffix: {self.suffix}')
+        return self.get_suffix_val()
     
     def get_title(self) -> str:
         if self.type == 'selectivity':
@@ -98,21 +91,27 @@ class Args():
             exit(1)
             
     def get_dir(self) -> str:
-        dir_name = f'plots-{self.dram_gib}-{self.target_gib}-{self.type}{self.suffix}'
+        if self.dram_gib < self.target_gib:
+            prefix = ''
+        elif self.dram_gib > self.target_gib * 2:
+            assert(self.in_memory)
+            prefix = 'in-memory-'
+        else:
+            prefix = f'{self.dram_gib}-{self.target_gib}-'
+        dir_name = f'plots/{prefix}{self.type}{self.suffix}'
         if self.outer_join:
             dir_name += '-outer'
-        if self.in_memory:
-            dir_name += '-in-memory' 
         if self.rocksdb:
             dir_name += '-rocksdb'
-        if not os.path.exists(dir_name):
-            os.mkdir(dir_name)
+        os.makedirs(dir_name, exist_ok=True)
         return dir_name
             
     def format_pattern(self) -> str:
-        pattern = r'(join|merged|base)-' + f'({self.dram_gib:.1f}|{int(self.dram_gib):d})' + f'-{self.target_gib}-'
+        pattern = r'(join|merged|base)/' + f'({self.dram_gib:.1f})'.replace('.', '\.') + f'-{self.target_gib}-'
         if self.rocksdb:
             pattern = 'rocksdb_' + pattern
+            
+        pattern = r'^' + pattern
         
         match self.type:
             case 'read':
@@ -142,6 +141,22 @@ class Args():
         pattern += self.suffix + r'$'
         
         return pattern
+    
+    def get_suffix_val(self):
+        if self.suffix == '':
+            return '', 0
+        matches = re.match(r'([^\d]+)(\d+)', self.suffix)
+        suffix_val = int(matches.group(2))
+        suffix_text = matches.group(1)
+        match suffix_text:
+            case '-col':
+                return 'included_columns', suffix_val
+            case '-sel':
+                return 'selectivity', suffix_val
+            case '-size':
+                return 'update_size', suffix_val
+            case _:
+                raise ValueError(f'Invalid suffix: {self.suffix}')
     
     def parse_path(self, path: str):
         matches = re.match(self.get_pattern(), path)

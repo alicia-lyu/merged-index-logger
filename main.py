@@ -31,13 +31,17 @@ if __name__ == '__main__':
     pattern = args.args.get_pattern()
     # iterate on all directories in the current directory
     file_paths = []
-    for dir in os.listdir('.'):
-        matches = re.match(pattern, dir)
-        if matches is not None:
-            assert(os.path.isdir(dir))
-            for file in os.listdir(dir):
-                if file.endswith('sum.csv'):
-                    file_paths.append(f'{dir}/{file}')
+    for dir0 in os.listdir('.'):
+        if not os.path.isdir(dir0):
+            continue
+        for dir1 in os.listdir(dir0):
+            path = f'{dir0}/{dir1}'
+            matches = re.match(pattern, path)
+            if matches is not None:
+                assert(os.path.isdir(path))
+                for file in os.listdir(path):
+                    if file.endswith('sum.csv'):
+                        file_paths.append(f'{path}/{file}')
     
     print(f"Found {len(file_paths)} directories with pattern {pattern}")
     if (len(file_paths) == 0):

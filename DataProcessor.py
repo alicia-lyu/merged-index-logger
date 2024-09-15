@@ -115,6 +115,8 @@ class DataProcessor:
         
         for i in range(len(self.data_frames)):
             agg = self.agg_each(i, stable_start, min_rows)
+            if agg is None:
+                continue
             aggs.append(agg)
             
         data = self.__merge_unique_settings_series(aggs)
@@ -176,10 +178,12 @@ class DataProcessor:
         unique_settings = {}
         for i, p in enumerate(self.file_paths):
             parent_dir = os.path.basename(os.path.dirname(p))
-            if parent_dir not in unique_settings.keys():
-                unique_settings[parent_dir] = [i]
+            grandparent_dir = os.path.basename(os.path.dirname(os.path.dirname(p)))
+            path = os.path.join(grandparent_dir, parent_dir)
+            if path not in unique_settings.keys():
+                unique_settings[path] = [i]
             else:
-                unique_settings[parent_dir].append(i)
+                unique_settings[path].append(i)
         print("Files grouped into unique settings:", unique_settings)
         return unique_settings
     

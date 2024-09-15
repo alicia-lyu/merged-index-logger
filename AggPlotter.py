@@ -190,10 +190,10 @@ class AggPlotter:
 
         if not broken:
             for base_row, join_row, merged_row in zip(base_scatter_points.itertuples(), join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
-                ordered_y = [base_row.y, join_row.y, merged_row.y]
+                ordered_y = [(base_row.y, 0), (join_row.y, 1), (merged_row.y, 2)]
                 ordered_y.sort()
                 for i, row in enumerate([base_row, join_row, merged_row]):
-                    newOrd = ordered_y.index(row.y)
+                    newOrd = ordered_y.index((row.y, i))
                     self.__add_text(ax, row.x, row.y, i, None, newOrd)
                 # else defer to __plot_broken_axis
         
@@ -203,8 +203,9 @@ class AggPlotter:
         ax.set_xticks(join_scatter_points['x'].unique())
         ax.set_xticklabels([str(x) for x in join_scatter_points['x'].unique()], fontsize=9, fontfamily='monospace')
         tick_positions = ax.get_xticks()
-        tick_width = tick_positions[1] - tick_positions[0]
-        ax.set_xlim(tick_positions[0] - tick_width * 0.5, tick_positions[-1] + tick_width * 0.5)
+        if len(tick_positions) > 1:
+            tick_width = tick_positions[1] - tick_positions[0]
+            ax.set_xlim(tick_positions[0] - tick_width * 0.5, tick_positions[-1] + tick_width * 0.5)
         ax.legend()
         
     def __get_text(self, t, y: float) -> str:
@@ -262,10 +263,10 @@ class AggPlotter:
         
         # Add text to the right ax
         for base_row, join_row, merged_row in zip(base_scatter_points.itertuples(), join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
-            ordered_y = [base_row.y, join_row.y, merged_row.y]
+            ordered_y = [(base_row.y, 0), (join_row.y, 1), (merged_row.y, 2)]
             ordered_y.sort()
             for i, row in enumerate([base_row, join_row, merged_row]):
-                newOrd = ordered_y.index(row.y)
+                newOrd = ordered_y.index((row.y, i))
                 if row.y < lower:
                     ax = ax2
                 elif row.y > upper:

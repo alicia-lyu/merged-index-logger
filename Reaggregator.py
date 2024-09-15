@@ -18,20 +18,24 @@ class Reaggregator:
     def __init__(self, agg_data: pd.DataFrame) -> None:
         self.agg_data: pd.DataFrame = agg_data
         self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
-        current_dir = os.path.dirname(os.path.realpath(__file__))
-        size_dir_base = 'size_rocksdb' if args.rocksdb else 'size'
-        size_dir_base += '_outer' if args.outer_join else ''
-        self.size_dir = os.path.join(current_dir, size_dir_base)
+        
+        self.size_file_base = 'size_outer' if args.outer_join else 'size'
         self.method_names = ['Base Tables', 'Materialized Join', 'Merged Index']
         self.method_names_short = ['base', 'join', 'merged']
         self.__parse_size()
+    
+    def __get_size_paths(self, method: str) -> Tuple[str, str, str]:
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+        size_path = os.path.join(current_dir, f'{method}', self.size_file_base + '.csv')
+        core_path = os.path.join(current_dir, f'{method}', f'{self.size_file_base}_core.csv')
+        rest_path = os.path.join(current_dir, f'{method}', f'{self.size_file_base}_rest.csv')
+        time_path = os.path.join(current_dir, f'{method}', f'{self.size_file_base}_time.csv')
+        return size_path, core_path, rest_path, time_path
         
     def __parse_size(self):
         for method in self.method_names_short:
-            size_path = os.path.join(self.size_dir, f'{method}_size.csv')
-            core_path = os.path.join(self.size_dir, f'{method}_core.csv')
-            rest_path = os.path.join(self.size_dir, f'{method}_rest.csv')
-            time_path = os.path.join(self.size_dir, f'{method}_time.csv')
+            method = 'rocksdb_' + method if args.rocksdb else method
+            size_path, core_path, rest_path, time_path = self.__get_size_paths(method)
             
             for derivative_path in [core_path, rest_path, time_path]:
                 if not os.path.exists(derivative_path) or os.path.getmtime(derivative_path) < os.path.getmtime(size_path): # derivative is older
@@ -141,8 +145,7 @@ class Reaggregator:
             dfs.append(points_df)
         return tuple(dfs)
     
-    def __reagg_extra(self):
-        def get_size(size_df: pd.DataFrame, x: int) -> float:
+    def __get_size(self, size_df: pd.DataFrame, x: int) -> float:
             suffix_label, suffix_val = args.get_filter_for_size_df()
             size_df_key = args.type.replace('-', '_')
             row = size_df[(size_df[size_df_key] == x) & (size_df[suffix_label] == suffix_val)]
@@ -151,11 +154,13 @@ class Reaggregator:
                 exit(1)
             return row['size'].iloc[-1]
         
-        def convert_to_df(rows: List[Tuple[int, int, float, float]]) -> pd.DataFrame:
-            rows.sort()
-            df = pd.DataFrame(rows, columns=["x", 'i_col', 'core_size', 'rest_size'])
-            df.set_index("x", inplace=True)
-            return df
+    def __convert_to_df(self, rows: List[Tuple[int, int, float, float]]) -> pd.DataFrame:
+        rows.sort()
+        df = pd.DataFrame(rows, columns=["x", 'i_col', 'core_size', 'rest_size'])
+        df.set_index("x", inplace=True)
+        return df
+    
+    def __reagg_extra(self):
 
         type_to_rows = defaultdict(lambda: ([], [], []))
         
@@ -171,29 +176,28 @@ class Reaggregator:
                 method_rows = merged_rows
             else:
                 method_rows = base_rows
-                
-            core_size_filename = f"{method}_core.csv"
-            rest_size_filename = f"{method}_rest.csv"
             
-            core_size_df = pd.read_csv(os.path.join(self.size_dir, core_size_filename))
-            rest_size_df = pd.read_csv(os.path.join(self.size_dir, rest_size_filename))
+            _, core_path, rest_path, _ = self.__get_size_paths(method)
             
-            core_size = get_size(core_size_df, extr_val)
-            rest_size = get_size(rest_size_df, extr_val)
+            core_size_df = pd.read_csv(core_path)
+            rest_size_df = pd.read_csv(rest_path)
+            
+            core_size = self.__get_size(core_size_df, extr_val)
+            rest_size = self.__get_size(rest_size_df, extr_val)
                 
             method_rows.append((extr_val, i, core_size, rest_size))
         
         type_to_dfs = {}
         
         for type, (base_rows, join_rows, merged_rows) in type_to_rows.items():
-            type_to_dfs[type] = (convert_to_df(base_rows), convert_to_df(join_rows), convert_to_df(merged_rows))
+            type_to_dfs[type] = (self.__convert_to_df(base_rows), self.__convert_to_df(join_rows), self.__convert_to_df(merged_rows))
         
         # Use the last set of dfs to plot size (tx_type independent)  
         self.__plot_size(*(type_to_dfs[type]))
         
         return type_to_dfs
         
-    def __plot_size(self, base_rows: pd.DataFrame, join_rows: pd.DataFrame, merged_rows: pd.DataFrame) -> None: # TODO: Test this
+    def __plot_size(self, base_rows: pd.DataFrame, join_rows: pd.DataFrame, merged_rows: pd.DataFrame) -> None:
         if list(join_rows.index) != list(merged_rows.index) or list(merged_rows.index) != list(base_rows.index):
             print('Extra-x values do not match')
             print(f'Join:\n{join_rows.index}')
@@ -230,17 +234,44 @@ class Reaggregator:
         fig.tight_layout()
         fig.savefig(os.path.join(args.get_dir(), f'{args.type}_size.png'), dpi=300)
         
+    def plot_size(self):
+        # Plot 4 selectivities: 5, 19, 50, 100
+        args.type = 'selectivity'
+        methods_df = []
+        for method in self.method_names_short:
+            method_rows = []
+            for selectivity in [5, 19, 50, 100]:
+                _, core_path, _, _ = self.__get_size_paths(method)
+                core_size_df = pd.read_csv(core_path)
+                core_size = self.__get_size(core_size_df, selectivity)
+                method_rows.append((selectivity, core_size))
+            methods_df.append(pd.DataFrame(method_rows, columns=['x', 'core_size'], index=[5, 19, 50, 100]))
+        self.__plot_size(*methods_df)
+        # Plot 3 included_columns: 0, 1, 2
+        args.type = 'included-columns'
+        methods_df = []
+        for method in self.method_names_short:
+            method_rows = []
+            for included_columns in [0, 1, 2]:
+                _, core_path, _, _ = self.__get_size_paths(method)
+                core_size_df = pd.read_csv(core_path)
+                core_size = self.__get_size(core_size_df, included_columns)
+                method_rows.append((included_columns, core_size))
+            methods_df.append(pd.DataFrame(method_rows, columns=['x', 'core_size'], index=[0, 1, 2]))
+        self.__plot_size(*methods_df)
+        
     def __plot_size_single(self):
+        (filter_text1, filter_val1), (filter_text2, filter_val2) = args.get_filter_for_size_df()
         def get_size(size_df: pd.DataFrame) -> float:
-            row = size_df[(size_df['selectivity'] == 100) & (size_df['included_columns'] == 1)]
+            row = size_df[(size_df[filter_text1] == filter_val1) & (size_df[filter_text2] == filter_val2)]
             if row.empty:
                 print(f'No data for {size_df}')
                 exit(1)
             return row['size'].iloc[-1]
         fig, ax = plt.subplots(figsize=(3, 4))
         for i, method in enumerate(['base', 'join', 'merged']):
-            core_size_filename = f"{method}_core.csv"
-            core_size_df = pd.read_csv(os.path.join(self.size_dir, core_size_filename))
+            _, core_path, _, _ = self.__get_size_paths(method)
+            core_size_df = pd.read_csv(core_path)
             core_size = get_size(core_size_df)
             ax.bar(i, core_size, color=self.colors[i], label=self.method_names[i])
             
@@ -248,4 +279,24 @@ class Reaggregator:
         ax.set_ylabel('Size (GB)')
         fig.tight_layout()
         fig.savefig(os.path.join(args.get_dir(), f'size.png'), dpi=300)
-            
+        
+if __name__ == '__main__':
+    import argparse
+    
+    parser = argparse.ArgumentParser("Reaggregator")
+
+    parser.add_argument(
+        '--suffix', type=str, required=False, help='Suffix of the dir names', default='')
+    parser.add_argument(
+        '--rocksdb', type=bool, required=False, help='Use RocksDB', default=False
+    )
+    parser.add_argument(
+        '--outer_join', type=bool, required=False, help='Use outer join', default=False
+    )
+    
+    # Parse the arguments
+    parser.parse_args(namespace=args)
+    
+    print(args)
+    reagg = Reaggregator(None)
+    reagg.plot_size()
