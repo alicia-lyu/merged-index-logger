@@ -25,6 +25,7 @@ class Reaggregator:
         self.__parse_size()
     
     def __get_size_paths(self, method: str) -> Tuple[str, str, str]:
+        method = 'rocksdb_' + method if args.rocksdb else method
         current_dir = os.path.dirname(os.path.realpath(__file__))
         size_path = os.path.join(current_dir, f'{method}', self.size_file_base + '.csv')
         core_path = os.path.join(current_dir, f'{method}', f'{self.size_file_base}_core.csv')
@@ -34,7 +35,6 @@ class Reaggregator:
         
     def __parse_size(self):
         for method in self.method_names_short:
-            method = 'rocksdb_' + method if args.rocksdb else method
             size_path, core_path, rest_path, time_path = self.__get_size_paths(method)
             
             for derivative_path in [core_path, rest_path, time_path]:
@@ -129,7 +129,7 @@ class Reaggregator:
             elif tx_type == 'read':
                 tx_type = 'Point Lookup\n(with an extra lookup key)'
             elif tx_type == 'write':
-                tx_type = 'Read-Write TX'
+                tx_type = 'Update'
             elif tx_type == 'scan':
                 tx_type = 'Range Scan'
             else:
@@ -217,20 +217,15 @@ class Reaggregator:
         
         fig, ax = plt.subplots(figsize=(len(base_rows.index) * bar_width * 6, 3))
         
-        for df, x, color in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors[:3]):
-            ax.bar(x, df['core_size'], width=bar_width, color=color, edgecolor='black')
-            # ax.bar(x, df['rest_size'], width=bar_width, color=color, hatch="xx", bottom=df['core_size'], edgecolor='black')
+        for df, x, color, method_name in zip([base_rows, join_rows, merged_rows], [base_x, join_x, merged_x], self.colors[:3], self.method_names):
+            ax.bar(x, df['rest_size'], width=bar_width, color='white', edgecolor=color, hatch='xx')
+            ax.bar(x, df['core_size'], width=bar_width, color=color, bottom=df['rest_size'], label=method_name, edgecolor=color)
             
         ax.set_xticks(range(len(base_rows.index)), base_rows.index)
         ax.set_xlabel(args.get_xlabel())
-        ax.set_ylabel('Size (GB)')
-        
-        color_patches = [mpatches.Patch(color=color, label=label) for color, label in zip(self.colors[:3], self.method_names)]
-        # hatch_patches = [mpatches.Patch(facecolor='white', hatch=hatch, label=label, edgecolor='black') for hatch, label in zip(['', "xx"], ['Core', 'Supporting'])]
-        
-        combined_handles = color_patches
-            # + hatch_patches
-        ax.legend(handles=combined_handles)
+        ax.set_ylabel('Full Database Size (GB)')
+
+        ax.legend()
         fig.tight_layout()
         fig.savefig(os.path.join(args.get_dir(), f'{args.type}_size.png'), dpi=300)
         

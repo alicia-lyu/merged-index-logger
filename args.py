@@ -1,7 +1,7 @@
 from typing import Tuple
 import os, re
 
-DEFAULT_DRAM_GIB = 0.3
+DEFAULT_DRAM_GIB = 1
 DEFAULT_TARGET_GIB = 4
 DEFAULT_TYPE = 'all-tx'
 DEFAULT_SUFFIX = ''
@@ -18,6 +18,11 @@ class Args():
         self.rocksdb: bool = DEFAULT_ROCKSDB
         self.outer_join: bool = False
         self.pattern = None
+
+    
+    def get_non_default_args(self):
+        default_args = {'dram_gib': DEFAULT_DRAM_GIB, 'target_gib': DEFAULT_TARGET_GIB, 'type': DEFAULT_TYPE, 'suffix': DEFAULT_SUFFIX, 'in_memory': DEFAULT_IN_MEMORY, 'rocksdb': DEFAULT_ROCKSDB}
+        return {k: v for k, v in self.__dict__.items() if k is not 'pattern' and v != default_args[k]}
     
     def get_pattern(self) -> str:
         if self.pattern is None:
@@ -86,6 +91,8 @@ class Args():
             return 'Included Columns' # expected to have 0 and 1 ticked as none and all
         elif self.type == 'all-tx':
             return 'Transaction Type'
+        elif self.type == 'manual':
+            return ''
         else:
             print(f'Invalid title: {self.type} to be set as xlabel')
             exit(1)

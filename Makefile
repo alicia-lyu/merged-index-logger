@@ -1,8 +1,5 @@
 TIMESTAMP := $(shell date +%m-%d-%H-%M-%S)
 
-tar-all:
-	tar -czvf "all-plots-$(TIMESTAMP).tar.gz" plots*
-
 clean-logs:
 	mkdir -p archive
 	-tar -czvf "archive/join-logs-$(TIMESTAMP).tar.gz" join*
@@ -17,11 +14,6 @@ clean-logs:
 	rm -rf rocksdb_join*
 	rm -rf rocksdb_merged*
 	rm -rf rocksdb_base*
-
-clean-size:
-	mkdir -p archive
-	tar -czvf "archive/size-$(TIMESTAMP).tar.gz" size*
-	rm -rf size*
 
 clean-plots:
 	mkdir -p archive
