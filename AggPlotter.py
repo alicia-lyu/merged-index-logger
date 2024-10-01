@@ -3,17 +3,23 @@ import pandas as pd
 import numpy as np
 from typing import List, Tuple
 import matplotlib.pyplot as plt
+from matplotlib import ticker
 from args import args
 from Reaggregator import Reaggregator
 import os, math
 
 class AggPlotter:
     def __init__(self, agg_data: pd.DataFrame, fig_dir: str) -> None:
+        plt.rcParams.update({'font.size': 10})
         self.agg_data: pd.DataFrame = agg_data
         self.fig_dir: str = fig_dir
-        self.colors: List[str] = ['#390099', '#9e0059', '#ff0054', '#ff5400', '#ffbd00', '#70e000']
-        self.markers: List[str] = ['x', '+', 'o', 's', 'D', 'v']
+        self.colors: List[str] = ['#ffbe0b', '#ff006e', '#3a86ff', '#fb5607', '#8338ec']
+        self.markers: List[str] = ['x', '+', '1', '2', '3', '4']
         self.labels: List[str] = ['Base Tables', 'Materialized Join', 'Merged Index']
+        golden_ratio = (1 + math.sqrt(5)) / 2
+        self.fig_width = 4.13
+        self.fig_height = 4.13 * 3 / 4
+        self.fig_broken_height = 4.13
     
     def plot(self) -> Tuple[dict, dict]:
         if args.type == 'all-tx':
@@ -28,6 +34,19 @@ class AggPlotter:
         for col in self.agg_data.columns:
             scatter_points_list, scatter_points_size_list = self.__get_scatter_points(base_rows, join_rows, merged_rows, col)
             self.plot_rows(col, None, *scatter_points_list)
+    
+    def __get_ylabel(self, col: str) -> str:
+        if col == 'TXs/s':
+            return 'Transactions per second'
+        elif col == 'Utilized CPU (%)':
+            return 'CPU utilization (%)'
+        elif col == 'IOs/TX':
+            return 'IOs per transaction'
+        elif col == 'CPUTime/TX (ms)':
+            return 'CPU time\nper transaction (ms)'
+        elif col == 'IO time (ms)/TX':
+            return 'IO time\nper transaction (ms)'
+        return col
     
     def __get_scatter_points(self, base_rows: pd.DataFrame, join_rows: pd.DataFrame, merged_rows: pd.DataFrame, col: str, size_df = None) -> Tuple[List, List]:
         scatter_points_list = []
@@ -72,24 +91,24 @@ class AggPlotter:
             ax.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
         
     def __plot_by_size(self, col: str, tp: str, base_scatter_points_size: List[Tuple], join_scatter_points_size: List[Tuple], merged_scatter_points_size: List[Tuple]) -> None:
-        fig, ax = plt.subplots(1, 1, figsize=(4.5, 4))
+        fig, ax = plt.subplots(1, 1, figsize=(self.fig_width, self.fig_height))
         
         for i, scatter_points in enumerate([base_scatter_points_size, join_scatter_points_size, merged_scatter_points_size]):
             df = self.__create_df_size(scatter_points)
             x_series = df['size']
-            if 'read' in tp:
-                x_series = x_series.apply(lambda x: x * 1024 * 1024 / 4)
-            ax.plot(x_series, df['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=2)
+            # if 'read' in tp:
+            #     x_series = x_series.apply(lambda x: x * 1024 * 1024 / 4)
+            ax.plot(x_series, df['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=2, markersize=10, alpha=0.7, markeredgewidth=3)
             for x, row in zip(x_series, df.itertuples()):
                 self.__add_text(ax, x, row.y, i, row.x)
             
-        if 'read' in tp:
-            ax.set_xscale('log')
-            ax.xaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
-            ax.set_xlabel('Page count of the storage structure')
-        else:
-            ax.set_xlabel('Size of the storage structure (GB)')
-        ax.set_ylabel(f'{col}')
+        # if 'read' in tp:
+        #     ax.set_xscale('log')
+        #     ax.xaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
+        #     ax.set_xlabel('Page count of the storage structure')
+        # else:
+        ax.set_xlabel('Size of the storage structure (GB)')
+        ax.set_ylabel(self.__get_ylabel(col))
         self.__set_locator_by_col(ax, col)
 
         ax.legend()
@@ -100,7 +119,7 @@ class AggPlotter:
         
         fig.savefig(
             f'{self.fig_dir}/{file_name}',
-            dpi=300)
+            dpi=600)
     
     def __create_df_size(self, size_list: List[Tuple]) -> pd.DataFrame:
         df = pd.DataFrame(size_list, columns=['size', 'y', 'x'])
@@ -114,10 +133,11 @@ class AggPlotter:
         sorted_values = np.sort(values)
         sqrt_values = np.sqrt(np.sqrt(sorted_values))
         diffs = np.diff(sqrt_values)
-        breakpoint_idx = np.argmax(diffs)
+        diff_ratios = diffs / sqrt_values[:-1]
+        breakpoint_idx = np.argmax(diff_ratios)
         lower = sorted_values[breakpoint_idx]
         upper = sorted_values[breakpoint_idx + 1]
-        lower = max(lower * 1.2, 0.1)
+        lower = lower * 1.2
         upper = max((upper + lower) / 2, 
                     upper - max(sorted_values.max() - upper, upper) * 0.2
                     )
@@ -144,7 +164,7 @@ class AggPlotter:
         
         assert(list(base_scatter_points['x']) == list(join_scatter_points['x']) and list(join_scatter_points['x']) == list(merged_scatter_points['x']))
         
-        if col == 'TXs/s' and tp is None:
+        if col == 'TXs/s' and tp is None and args.in_memory is False and args.suffix == '' and args.type == 'all-tx':
             query_df = pd.read_csv('query_manual.csv')
             update_df = pd.read_csv('update_manual.csv')
         else:
@@ -180,15 +200,15 @@ class AggPlotter:
         else:
             all_tx_mask = [True] * len(base_scatter_points)
         
-        fig_width = len(base_scatter_points['x'].unique()) * 1.4 + 1
+        fig_width = len(base_scatter_points[all_tx_mask]['x'].unique()) * 1.2 + 0.9
         if breakpoint_ret is False:
-            fig, ax = plt.subplots(1, 1, figsize=(fig_width, 4))
+            fig, ax = plt.subplots(1, 1, figsize=(self.fig_width, self.fig_height))
             self.__plot_axis(ax, col, tp, 
                              base_scatter_points[all_tx_mask],
                              join_scatter_points[all_tx_mask], 
                              merged_scatter_points[all_tx_mask])
         else:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(fig_width, 4))
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(self.fig_width, self.fig_broken_height))
             fig.subplots_adjust(hspace=0.05)
             lower, upper = breakpoint_ret
             print(f'Lower: {lower}, Upper: {upper}')
@@ -203,11 +223,11 @@ class AggPlotter:
         file_name = f'{col_name}-{tp}.png' if tp is not None else f'{col_name}.png'
         fig.savefig(
             f'{self.fig_dir}/{file_name}',
-            dpi=300)
+            dpi=600)
         
         # Compare two point queries: with or without an extra column
         if tp is None: # TX Type is x-axis
-            fig_read, ax_read = plt.subplots(1, 1, figsize=(3.8, 4))
+            fig_read, ax_read = plt.subplots(1, 1, figsize=(self.fig_width, self.fig_height))
             pq_mask = ['Point Lookup' in x for x in join_scatter_points['x']]
             assert(sum(pq_mask) == 2)
             self.__plot_axis(ax_read, col, tp,
@@ -217,26 +237,20 @@ class AggPlotter:
             fig_read.tight_layout()
             fig_read.savefig(
                 f'{self.fig_dir}/{file_name.replace(".png", "-point-query.png")}',
-                dpi=300)
+                dpi=600)
             
     def __plot_axis(self, ax: plt.Axes, col: str, tp: str, base_scatter_points: pd.DataFrame, join_scatter_points: pd.DataFrame, merged_scatter_points: pd.DataFrame, broken: bool = False) -> None:
         for i, scatter_points in enumerate([base_scatter_points, join_scatter_points, merged_scatter_points]):
-            ax.scatter(scatter_points['x'], scatter_points['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=2)
+            ax.scatter(scatter_points['x'], scatter_points['y'], marker=self.markers[i], label=self.labels[i], color=self.colors[i], linewidth=3, s=200, alpha=0.7)
 
         if not broken:
             ax.set_yscale('log')
             ax.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
-            for base_row, join_row, merged_row in zip(base_scatter_points.itertuples(), join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
-                ordered_y = [(base_row.y, 0), (join_row.y, 1), (merged_row.y, 2)]
-                ordered_y.sort()
-                for i, row in enumerate([base_row, join_row, merged_row]):
-                    newOrd = ordered_y.index((row.y, i))
-                    self.__add_text(ax, row.x, row.y, i, None, newOrd)
-                # else defer to __plot_broken_axis
         
         ax.set_xlabel(args.get_xlabel())
+        ax.grid(True, which='major', axis='y', linestyle='dotted')
         
-        ax.set_ylabel(f'{col}')
+        ax.set_ylabel(self.__get_ylabel(col))
         ax.set_xticks(join_scatter_points['x'].unique())
         xlabels = [str(x).replace('%, ', '%,\n') for x in join_scatter_points['x'].unique()]
         # print(f'xlabels: {xlabels}')
@@ -292,13 +306,17 @@ class AggPlotter:
         self.__plot_axis(ax2, col, tp, base_scatter_points, join_scatter_points, merged_scatter_points, True)
 
         ax2.set_ylim(-lower * 0.05, lower)
-        vmax = max(base_scatter_points['y'].max(), join_scatter_points['y'].values.max(), merged_scatter_points['y'].values.max()) * 1.1
+        # disable useOffset for ax2
+        ax2.yaxis.set_major_formatter(ticker.ScalarFormatter(useOffset=False))
+        y_values = base_scatter_points['y'].values.tolist() + join_scatter_points['y'].values.tolist() + merged_scatter_points['y'].values.tolist()
+        vmax = max(y_values) * 1.2
         ax1.set_ylim(upper, vmax)
         
         ax1_yticks = ax1.get_yticks()
         if ax1_yticks[0] == 0: # Upper broken axis' minimum is 0. This happens when the largest value dominate the scale of upper axis.
             ax1.set_yscale('log')
             ax1.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
+            ax1.set_ylim(upper, vmax * 1.5)
             print("ax1_yticks started from 0, reset to ", ax1.get_yticks())
         ax2_yticks = ax2.get_yticks()
         y_values = base_scatter_points['y'].values.tolist() + join_scatter_points['y'].values.tolist() + merged_scatter_points['y'].values.tolist()
@@ -308,22 +326,7 @@ class AggPlotter:
             ax2.yaxis.set_major_locator(plt.LogLocator(base=10, numticks=15))
             new_min = 10**math.floor(math.log10(y_values[0]))
             print(f"y_min: {y_values[0]}, new_min: {new_min}")
-            ax2.set_ylim(new_min, lower) # `log` scale resets the y limit
-            
-        # Add text to the right ax
-        for base_row, join_row, merged_row in zip(base_scatter_points.itertuples(), join_scatter_points.itertuples(), merged_scatter_points.itertuples()):
-            ordered_y = [(base_row.y, 0), (join_row.y, 1), (merged_row.y, 2)]
-            ordered_y.sort()
-            for i, row in enumerate([base_row, join_row, merged_row]):
-                newOrd = ordered_y.index((row.y, i))
-                if row.y < lower:
-                    ax = ax2
-                elif row.y > upper:
-                    ax = ax1
-                else:
-                    print(f'Row {row} is in the middle.')
-                    exit(1)
-                self.__add_text(ax, row.x, row.y, i, None, newOrd)
+            ax2.set_ylim(new_min, lower * 1.5) # `log` scale resets the y limit
         
         # Tick ax1's x axis at the top and ax2's x axis at the bottom
         ax1.spines.bottom.set_visible(False)
@@ -334,6 +337,11 @@ class AggPlotter:
         # Remove labels, ticks, and legends set by __plot_axis
         ax1.set_xlabel('')
         ax1.set_xticks([], [])
+        # y_in_ax1 = [1 if y >= upper else 0 for y in y_values]
+        # if sum(y_in_ax1) / len(y_in_ax1) <= 0.5: # fewer y in ax1
+        #     ax2.legend().remove()
+        # else:
+        #     ax1.legend().remove()
         ax2.legend().remove()
         ax2.set_ylabel('')
 

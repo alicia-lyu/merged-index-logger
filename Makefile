@@ -22,23 +22,6 @@ clean-plots:
 
 clean-all: clean-logs clean-plots
 
-rocksdb := ''
-
-same-size:
-	python3 main.py --type=all-tx --suffix=-sel19 --rocksdb=$(rocksdb)
-
-in-memory:
-	python3 main.py --type=all-tx --dram=16 --suffix=-sel19 --rocksdb=$(rocksdb)
-
-selectivity-col%:
-	python3 main.py --type=selectivity --suffix=-col$* --rocksdb=$(rocksdb)
-
-selectivity:
-	python3 main.py --type=selectivity --rocksdb=$(rocksdb)
-
-rocksdb-%:
-	make $* rocksdb=1
-
 # Directory pattern that you want to check
 DIRS := $(wildcard */)
 
@@ -54,18 +37,28 @@ clean_unfinished:
 		fi \
 	done
 
-default:
-	python3 main.py --type=all-tx --dram=0.3
-
-plot-all:
-	python3 main.py --type=read
-	python3 main.py --type=scan
-	python3 main.py --type=write
-	python3 main.py --type=update-size
+in-paper:
+	python3 main.py
+	python3 main.py --suffix=-sel19
+	python3 main.py --dram_gib=16 --in_memory=1
+	python3 main.py --rocksdb=1
 	python3 main.py --type=selectivity
-	python3 main.py --type=included-columns
-	python3 plot_size.py
+	python3 main.py --rocksdb=1 --type=selectivity
+	python3 AggPlotter.py --stats=update_manual.csv
 
-all: plot-all tar-all
+copy-plots:
+	mkdir -p in-paper
+	cp plots/all-tx/TXs-s.png in-paper/all-tx.png
+	cp plots/all-tx/all-tx_size.png in-paper/all-tx-size.png
+	cp plots/all-tx-sel19/TXs-s.png in-paper/all-tx-sel19.png
+	cp plots/all-tx-rocksdb/TXs-s.png in-paper/all-tx-rocksdb.png
+	cp plots/in-memory-all-tx/TXs-s.png in-paper/all-tx-in-memory.png
+	cp plots/selectivity/TXs-s-read-locality-size.png in-paper/selectivity-read-locality-size.png
+	cp plots/selectivity/TXs-s-scan-size.png in-paper/selectivity-scan-size.png
+	cp plots/selectivity/selectivity_size.png in-paper/selectivity-size.png
+	cp plots/selectivity-rocksdb/TXs-s-read-locality-size.png in-paper/selectivity-rocksdb-read-locality-size.png
+	cp plots/selectivity-rocksdb/selectivity_size.png in-paper/selectivity-rocksdb-size.png
+	cp plots/selectivity-rocksdb/selectivity_time.png in-paper/selectivity-rocksdb-time.png
+	cp plots/update_manual/TXs-s-manual.png in-paper/update-manual.png
 
-.PHONY: tar-all, plot-all
+.PHONY: in-paper move-plots
