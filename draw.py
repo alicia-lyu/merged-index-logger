@@ -12,6 +12,9 @@ COLORS = {
     "purple": "#8338ec",
     "green": "#00a86b"
 }
+METHODS = ["traditional indexes", "merged index", "materialized join view"]
+STORAGES = ["memory-resident b-tree", "disk-resident b-tree", "lsm-forest"]
+TX_TYPES = ["read-locality", "read", "write", "scan"]
 DEFAULT_JOIN = "inner"
 DEFAULT_DRAM = 1
 DEFAULT_TARGET = 4
@@ -27,7 +30,7 @@ size_df = collect_size_data()
 # Helper Functions
 def get_storage_indexing_values(storage, method, tx):
     common_values = (method, tx, DEFAULT_SELECTIVITY, DEFAULT_COLUMNS, DEFAULT_JOIN, DEFAULT_DRAM, DEFAULT_TARGET, DEFAULT_UPDATE_SIZE)
-    if storage == "memory-resident b-tree":
+    if storage == STORAGES[0]:
         return (method, tx, DEFAULT_SELECTIVITY, DEFAULT_COLUMNS, DEFAULT_JOIN, 16, DEFAULT_TARGET, DEFAULT_UPDATE_SIZE)
     return common_values
 
@@ -75,9 +78,11 @@ def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
     ax.set_ylabel(ylabel)
     return im
 
-def add_colorbar(fig, im, label):
-    orientation = "vertical" if len(fig.axes) > 1 else "horizontal"
-    location = "right" if orientation == "vertical" else "top"
+def add_colorbar(fig, im, label, orientation=None, location=None):
+    if orientation is None:
+        orientation = "vertical" if len(fig.axes) > 1 else "horizontal"
+    if location is None:
+        location = "right" if orientation == "vertical" else "top"
     bar = fig.colorbar(im, ax=fig.axes, label=label, orientation=orientation, location=location)
     bar.formatter = mticker.FuncFormatter(lambda x, _: f"{x * 100:.0f}%")
     ticks = bar.get_ticks()
@@ -87,8 +92,7 @@ def add_colorbar(fig, im, label):
     bar.set_ticks(ticks)
     bar.ax.axhline(y=1, color="black", linestyle="--", linewidth=1)
 
-def draw_bars(fig, ax, X, Y, ylabel):
-    fig.set_size_inches(2 + len(X) * 0.6, 4)
+def draw_bars(ax, X, Y, ylabel):
     rotation = len(max(X, key=len)) > 3
     
     ax.bar(X, Y, color=COLORS["green"])
@@ -109,12 +113,12 @@ def draw_bars(fig, ax, X, Y, ylabel):
 def maintenance_match():
     X = ["memory-resident\nb-tree", "disk-resident\nb-tree", "lsm-forest"]
     Y = [
-        safe_loc(leanstore_tx, get_storage_indexing_values(storage, "merged index", "write"), "tput") /
-        safe_loc(leanstore_tx, get_storage_indexing_values(storage, "traditional indexes", "write"), "tput")
-        for storage in ["memory-resident b-tree", "disk-resident b-tree", "lsm-forest"]
+        safe_loc(leanstore_tx, get_storage_indexing_values(storage, METHODS[1], "write"), "tput") /
+        safe_loc(leanstore_tx, get_storage_indexing_values(storage, METHODS[0], "write"), "tput")
+        for storage in STORAGES
     ]
-    fig, ax = plt.subplots()
-    draw_bars(fig, ax, X, Y, ylabel="Ratio of Transaction Throughput\nMerged Index : Traditional Indexes")
+    fig, ax = plt.subplots(figsize=(2 + len(X) * 0.6, 4))
+    draw_bars(ax, X, Y, ylabel="Ratio of Transaction Throughput\nMerged Index : Traditional Indexes")
     fig.tight_layout()
     fig.savefig("charts/maintenance_match.png", dpi=300)
 
@@ -123,19 +127,18 @@ def query_heatmaps(baseline):
     col_values = [0, 2, 1]
     heatmap1 = compute_heatmap(
         leanstore_tx, row_values, col_values,
-        lambda sel, col: safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, "merged index", "read-locality"), "tput") /
+        lambda sel, col: safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, METHODS[1], "read-locality"), "tput") /
         safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, baseline, "read-locality"), "tput")
     )
     heatmap2 = compute_heatmap(
         leanstore_tx, row_values, col_values,
-        lambda sel, col: safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, "merged index", "scan"), "tput") /
+        lambda sel, col: safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, METHODS[1], "scan"), "tput") /
         safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, baseline, "scan"), "tput")
     )
-    storage_values = ["memory-resident b-tree", "disk-resident b-tree", "lsm-forest"]
     tx_values = ["read-locality", "scan"]
     heatmap3 = compute_heatmap(
-        leanstore_tx, storage_values, tx_values,
-        lambda storage, tx: safe_loc(leanstore_tx, get_storage_indexing_values(storage, "merged index", tx), "tput") /
+        leanstore_tx, STORAGES, tx_values,
+        lambda storage, tx: safe_loc(leanstore_tx, get_storage_indexing_values(storage, METHODS[1], tx), "tput") /
         safe_loc(leanstore_tx, get_storage_indexing_values(storage, baseline, tx), "tput")
     )
     return heatmap1, heatmap2, heatmap3
@@ -169,8 +172,8 @@ def space_overhead():
     col_values = [0, 2, 1]
     heatmap = compute_heatmap(
         size_df, row_values, col_values,
-        lambda storage, col: safe_loc(size_df, tuple(["merged index", storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, col, DEFAULT_JOIN]), "core_size") /
-        safe_loc(size_df, tuple(["traditional indexes", storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, col, DEFAULT_JOIN]), "core_size")
+        lambda storage, col: safe_loc(size_df, tuple([METHODS[1], storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, col, DEFAULT_JOIN]), "core_size") /
+        safe_loc(size_df, tuple([METHODS[0], storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, col, DEFAULT_JOIN]), "core_size")
     )
     fig, ax = plt.subplots(figsize=get_heatmap_figsize(len(row_values), len(col_values)), layout="constrained")
     im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, ["none", "selected", "all"], ["b-tree", "lsm-forest"], "Included Columns", "Storage Type")
@@ -186,8 +189,8 @@ def compression_effect():
     col_values = [0, 2, 1]
     heatmap = compute_heatmap(
         size_df, row_values, col_values,
-        lambda sel, col: safe_loc(size_df, tuple(["merged index", "b-tree", DEFAULT_TARGET, sel if sel != "outer" else DEFAULT_SELECTIVITY, col, DEFAULT_JOIN if sel != "outer" else "outer"]), "core_size") /
-        safe_loc(size_df, tuple(["materialized join view", "b-tree", DEFAULT_TARGET, sel if sel != "outer" else DEFAULT_SELECTIVITY, col, DEFAULT_JOIN if sel != "outer" else "outer"]), "core_size")
+        lambda sel, col: safe_loc(size_df, tuple([METHODS[1], "b-tree", DEFAULT_TARGET, sel if sel != "outer" else DEFAULT_SELECTIVITY, col, DEFAULT_JOIN if sel != "outer" else "outer"]), "core_size") /
+        safe_loc(size_df, tuple([METHODS[2], "b-tree", DEFAULT_TARGET, sel if sel != "outer" else DEFAULT_SELECTIVITY, col, DEFAULT_JOIN if sel != "outer" else "outer"]), "core_size")
     )
     fig, ax = plt.subplots(figsize=get_heatmap_figsize(len(row_values), len(col_values)), layout="constrained")
     im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, ["none", "selected", "all"], ["Inner Join,\nSO=5%", "Inner Join,\nSO=19%", "Inner Join,\nSO=50%", "Inner Join,\nSO=100%", "Outer Join"], "Included Columns", "Join Type and Join Selectivity")
@@ -198,25 +201,25 @@ def compression_effect():
 # - X: Traditional Indexes, Merged Index, Materialized Join View
 # - Y: Core, Rest, Additional, stacked bar    
 def size_overview():
-    X = ["Traditional Indexes", "Merged Index", "Materialized Join View"]
+    X = [m.capitalize() for m in METHODS]
     get_index_values = lambda method: (method, "b-tree", DEFAULT_TARGET, DEFAULT_SELECTIVITY, DEFAULT_COLUMNS, DEFAULT_JOIN)
     
     Y1 = [
-        safe_loc(size_df, get_index_values("traditional indexes"), "rest_size"),
-        safe_loc(size_df, get_index_values("merged index"), "rest_size"),
-        safe_loc(size_df, get_index_values("materialized join view"), "rest_size")
+        safe_loc(size_df, get_index_values(METHODS[0]), "rest_size"),
+        safe_loc(size_df, get_index_values(METHODS[1]), "rest_size"),
+        safe_loc(size_df, get_index_values(METHODS[2]), "rest_size")
     ]
     
     Y2 = [
-        safe_loc(size_df, get_index_values("traditional indexes"), "additional_size"),
-        safe_loc(size_df, get_index_values("merged index"), "additional_size"),
-        safe_loc(size_df, get_index_values("materialized join view"), "additional_size")
+        safe_loc(size_df, get_index_values(METHODS[0]), "additional_size"),
+        safe_loc(size_df, get_index_values(METHODS[1]), "additional_size"),
+        safe_loc(size_df, get_index_values(METHODS[2]), "additional_size")
     ]
     
     Y3 = [
-        safe_loc(size_df, get_index_values("traditional indexes"), "core_size"),
-        safe_loc(size_df, get_index_values("merged index"), "core_size"),
-        safe_loc(size_df, get_index_values("materialized join view"), "core_size")
+        safe_loc(size_df, get_index_values(METHODS[0]), "core_size"),
+        safe_loc(size_df, get_index_values(METHODS[1]), "core_size"),
+        safe_loc(size_df, get_index_values(METHODS[2]), "core_size")
     ]
     
     fig, ax = plt.subplots(figsize=(len(X) * 0.6 + 2, 4), layout="constrained")
@@ -229,11 +232,43 @@ def size_overview():
     ax.legend()
     fig.savefig("charts/size_overview.png", dpi=300)
 
+def lsm_speedup():
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8), sharex=True, layout="constrained", gridspec_kw={"height_ratios": [2, 1]})
+    X = [m.capitalize() for m in METHODS]
+    Y = [
+        safe_loc(leanstore_tx, get_storage_indexing_values(STORAGES[2], m, "write"), "tput") /
+        safe_loc(leanstore_tx, get_storage_indexing_values(STORAGES[1], m, "write"), "tput")
+        for m in METHODS
+    ]
+    draw_bars(ax1, X, Y, ylabel="Ratio of Transaction Throughput\nLSM-forest : Disk-resident b-tree")
+    
+    ax2.set_aspect('auto')
+    
+    def heatmap_fn(storage, method):
+        tx_df = rocksdb_tx if storage == STORAGES[-1] else leanstore_tx
+        read_col = "sst_read_per_tx" if storage == STORAGES[-1] else "ssd_reads_per_tx"
+        write_col = "sst_write_per_tx" if storage == STORAGES[-1] else "ssd_writes_per_tx"
+        read_val = safe_loc(tx_df, get_storage_indexing_values(storage, method, "write"), read_col)
+        write_val = safe_loc(tx_df, get_storage_indexing_values(storage, method, "write"), write_col)
+        return read_val / (read_val + write_val)
+        
+    heatmap = compute_heatmap(
+        leanstore_tx, [s.capitalize() for s in STORAGES[1:]], X,
+        heatmap_fn
+    )
+    
+    im = draw_heatmap(heatmap, ax2, "Purples", 0, 1, X, STORAGES[1:], "Method", "Storage Type")
+    
+    add_colorbar(fig, im, "Read Ratio of SSD Access\nLSM-forest : Disk-resident b-tree", "horizontal", "bottom")
+    
+    fig.savefig("charts/lsm_speedup.png", dpi=300)
+
 # Execution
 if __name__ == "__main__":
+    lsm_speedup()
     maintenance_match()
-    draw_query_heatmap("traditional indexes")
-    draw_query_heatmap("materialized join view")
+    draw_query_heatmap(METHODS[0])
+    draw_query_heatmap(METHODS[2])
     space_overhead()
     compression_effect()
     size_overview()
