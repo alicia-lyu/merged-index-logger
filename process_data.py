@@ -143,13 +143,10 @@ def collect_size_data():
         # Convert to rows
         for config, tables in size_dir.items():
             configs = config.split("|")
-            if (len(configs) == 4):
-                join = "inner"
-            elif (len(configs) == 5):
+            if len(configs) == 5 and configs[-1] == 1:
                 join = "outer"
             else:
-                print("Unknown join type: ", config)
-                continue
+                join = "inner"
             _, target, selectivity, included_columns = configs[:4]
             additional_time = 0
             additional_size = 0
