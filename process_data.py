@@ -110,7 +110,7 @@ def synthesize(path):
 
 # method,storage,dram,target,selectivity,included_columns,core_size,rest_size,additional_size,core_time,rest_time,additional_time
 def collect_size_data():
-    params = ["method", "storage", "dram", "target", "selectivity", "included_columns", "join"]
+    params = ["method", "storage", "target", "selectivity", "included_columns", "join"]
     metrics = ["core_size", "rest_size", "additional_size", "core_time", "rest_time", "additional_time"]
     headers = params + metrics
     rows = []
@@ -150,7 +150,7 @@ def collect_size_data():
             else:
                 print("Unknown join type: ", config)
                 continue
-            dram, target, selectivity, included_columns = configs[:4]
+            _, target, selectivity, included_columns = configs[:4]
             additional_time = 0
             additional_size = 0
             for table, (s, t) in tables.items():
@@ -164,7 +164,7 @@ def collect_size_data():
                     print("Additional table found: ", table)
                     additional_size = s
                     additional_time = t
-            row = [method, storage, dram, target, selectivity, included_columns, join, core_size, rest_size, additional_size, core_time, rest_time, additional_time]
+            row = [method, storage, int(target), int(selectivity), int(included_columns), join, float(core_size), float(rest_size), float(additional_size), int(core_time), int(rest_time), int(additional_time)]
             rows.append(row)
     size_df = pd.DataFrame(rows, columns=headers)
     size_df.set_index(params, inplace=True)
