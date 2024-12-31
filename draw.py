@@ -84,13 +84,14 @@ def add_colorbar(fig, im, label, orientation=None, location=None):
     if location is None:
         location = "right" if orientation == "vertical" else "top"
     bar = fig.colorbar(im, ax=fig.axes, label=label, orientation=orientation, location=location)
-    bar.formatter = mticker.FuncFormatter(lambda x, _: f"{x * 100:.0f}%")
     ticks = bar.get_ticks()
     if 1 not in ticks:
         ticks = np.concatenate(([1], ticks))
         ticks.sort()
+    bar.formatter = mticker.FuncFormatter(lambda x, _: f"{x * 100:.0f}%")
     bar.set_ticks(ticks)
-    bar.ax.axhline(y=1, color="black", linestyle="--", linewidth=1)
+    bar_line = bar.ax.axhline(y=1, color="black", linestyle="--", linewidth=1)
+    return bar, bar_line
 
 def draw_bars(ax, X, Y, ylabel):
     rotation = len(max(X, key=len)) > 3
@@ -233,33 +234,57 @@ def size_overview():
     fig.savefig("charts/size_overview.png", dpi=300)
 
 def lsm_speedup():
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8), sharex=True, layout="constrained", gridspec_kw={"height_ratios": [2, 1]})
+    fig = plt.figure(figsize=(4, 8), constrained_layout=False)
+    gs = fig.add_gridspec(2, 1, height_ratios=[2, 1], hspace=0.3)
+    
+    # Bar Chart
+    ax1 = fig.add_subplot(gs[0, 0])
+    
     X = [m.capitalize() for m in METHODS]
     Y = [
-        safe_loc(leanstore_tx, get_storage_indexing_values(STORAGES[2], m, "write"), "tput") /
+        safe_loc(rocksdb_tx, get_storage_indexing_values(STORAGES[2], m, "write"), "tput") /
         safe_loc(leanstore_tx, get_storage_indexing_values(STORAGES[1], m, "write"), "tput")
         for m in METHODS
     ]
     draw_bars(ax1, X, Y, ylabel="Ratio of Transaction Throughput\nLSM-forest : Disk-resident b-tree")
     
-    ax2.set_aspect('auto')
-    
+    # Heatmap Data Preparation
     def heatmap_fn(storage, method):
         tx_df = rocksdb_tx if storage == STORAGES[-1] else leanstore_tx
         read_col = "sst_read_per_tx" if storage == STORAGES[-1] else "ssd_reads_per_tx"
         write_col = "sst_write_per_tx" if storage == STORAGES[-1] else "ssd_writes_per_tx"
         read_val = safe_loc(tx_df, get_storage_indexing_values(storage, method, "write"), read_col)
         write_val = safe_loc(tx_df, get_storage_indexing_values(storage, method, "write"), write_col)
+        print(f"Storage: {storage}, Method: {method}, Read: {read_val}, Write: {write_val}")
         return read_val / (read_val + write_val)
         
     heatmap = compute_heatmap(
-        leanstore_tx, [s.capitalize() for s in STORAGES[1:]], X,
+        leanstore_tx, STORAGES[1:], METHODS,
         heatmap_fn
     )
     
-    im = draw_heatmap(heatmap, ax2, "Purples", 0, 1, X, STORAGES[1:], "Method", "Storage Type")
-    
-    add_colorbar(fig, im, "Read Ratio of SSD Access\nLSM-forest : Disk-resident b-tree", "horizontal", "bottom")
+    # Heatmap
+    ax2 = fig.add_subplot(gs[1, 0])
+    im = draw_heatmap(
+        heatmap, ax2, "Purples", min(0.9, heatmap.min()), heatmap.max(), 
+        X, 
+        ["disk-resident\nb-tree", "lsm-forest"], None, None
+    )
+    bar, bar_line = add_colorbar(fig, im, "Read Ratio of SSD Access", "horizontal", "bottom")
+    bar_line.remove()
+    ax1.set_xticklabels([])
+    fig.tight_layout()
+    # Adjust Axes Widths
+    ax1_pos = ax1.get_position()
+    ax2_pos = ax2.get_position()
+    bar_pos = bar.ax.get_position()
+    # Match the widths by aligning left and right bounds
+    new_left = max(ax1_pos.x0, ax2_pos.x0)
+    new_right = min(ax1_pos.x1, ax2_pos.x1)
+    touching_y = ax1_pos.y0 - ax2_pos.height * 1.1
+    ax1.set_position([new_left, ax1_pos.y0, new_right - new_left, ax1_pos.height])
+    ax2.set_position([new_left, touching_y, new_right - new_left, ax2_pos.height])
+    bar.ax.set_position([new_left, bar_pos.y0, new_right - new_left, bar_pos.height])
     
     fig.savefig("charts/lsm_speedup.png", dpi=300)
 
