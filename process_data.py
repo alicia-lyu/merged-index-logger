@@ -108,7 +108,6 @@ def synthesize(path):
         utilized_cpus = df["Utilized CPUs"].mean()
         return tput, sst_read_per_tx, sst_write_per_tx, cpu_time_per_tx, utilized_cpus
 
-# method,storage,dram,target,selectivity,included_columns,core_size,rest_size,additional_size,core_time,rest_time,additional_time
 def collect_size_data():
     params = ["method", "storage", "target", "selectivity", "included_columns", "join"]
     metrics = ["core_size", "rest_size", "additional_size", "core_time", "rest_time", "additional_time"]
@@ -131,42 +130,57 @@ def collect_size_data():
         else:
             storage = "b-tree"
         size_f = os.path.join(d, "size.csv")
-        time_f = os.path.join(d, "time.csv")
-        if not os.path.exists(size_f) or not os.path.exists(time_f):
-            print("Missing size or time file in: ", d)
-            continue
-        size_df = pd.read_csv(size_f)
-        # Consolidate the data
-        size_dir = defaultdict(dict)
-        for i, row in size_df.iterrows():
-            size_dir[row["config"]][row["table(s)"]] = (row["size"], row["time(ms)"])
-        # Convert to rows
-        for config, tables in size_dir.items():
-            configs = config.split("|")
-            if len(configs) == 5 and configs[-1] == 1:
-                join = "outer"
-            else:
-                join = "inner"
-            _, target, selectivity, included_columns = configs[:4]
-            additional_time = 0
-            additional_size = 0
-            for table, (s, t) in tables.items():
-                if table == "core":
-                    rest_size = s
-                    rest_time = t
-                elif table == "stock+orderline_secondary" or table == "merged_index" or table == "join_results":
-                    core_size = s
-                    core_time = t
-                else:
-                    print("Additional table found: ", table)
-                    additional_size = s
-                    additional_time = t
-            row = [method, storage, int(target), int(selectivity), int(included_columns), join, float(core_size), float(rest_size), float(additional_size), int(core_time), int(rest_time), int(additional_time)]
-            rows.append(row)
+        size_outer_f = os.path.join(d, "size_outer.csv")
+        rows_inner = process_size_file(size_f)
+        rows_outer = process_size_file(size_outer_f)
+        if rows_inner is not None:
+            rows.extend([[method, storage] + r for r in rows_inner])
+        if rows_outer is not None:
+            rows.extend([[method, storage] + r for r in rows_outer])
+            
     size_df = pd.DataFrame(rows, columns=headers)
     size_df.set_index(params, inplace=True)
     size_df.to_csv("size_data.csv")
     return size_df
+
+def process_size_file(path):
+    if not os.path.exists(path):
+        print(f"Missing file {path}")
+        return None
+    size_df = pd.read_csv(path)
+    # Consolidate the data
+    size_dir = defaultdict(dict)
+    for i, row in size_df.iterrows():
+        size_dir[row["config"]][row["table(s)"]] = (row["size"], row["time(ms)"])
+    # Convert to rows
+    rows = []
+    for config, tables in size_dir.items():
+        configs = config.split("|")
+        # if len(configs) == 5 and configs[-1] == 1:
+        #     join = "outer"
+        # else:
+        #     join = "inner"
+        if "outer" in path:
+            join = "outer"
+        else:
+            join = "inner"
+        _, target, selectivity, included_columns = configs[:4]
+        additional_time = 0
+        additional_size = 0
+        for table, (s, t) in tables.items():
+            if table == "core":
+                rest_size = s
+                rest_time = t
+            elif table == "stock+orderline_secondary" or table == "merged_index" or table == "join_results":
+                core_size = s
+                core_time = t
+            else:
+                print("Additional table found: ", table)
+                additional_size = s
+                additional_time = t
+        row = [int(target), int(selectivity), int(included_columns), join, float(core_size), float(rest_size), float(additional_size), int(core_time), int(rest_time), int(additional_time)]
+        rows.append(row)
+    return rows
     
 if __name__ == "__main__":
     collect_tx_data()
