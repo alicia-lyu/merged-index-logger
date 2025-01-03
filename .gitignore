@@ -1,5 +1,7 @@
 /**/
-# ignore all directories
 *.tar.gz
 *.csv
 *.png
+!synthesis_size.csv
+!synthesis_leanstore.csv
+!synthesis_rocksdb.csv

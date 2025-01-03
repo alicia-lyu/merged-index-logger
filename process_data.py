@@ -82,8 +82,8 @@ def collect_tx_data():
     leanstore_df.set_index(params, inplace=True)
     rocksdb_df = pd.DataFrame(rocksdb_rows, columns=rocksdb_headers)
     rocksdb_df.set_index(params, inplace=True)
-    leanstore_df.to_csv("leanstore_tx_data.csv")
-    rocksdb_df.to_csv("rocksdb_tx_data.csv")
+    leanstore_df.to_csv("synthesis_leanstore.csv")
+    rocksdb_df.to_csv("synthesis_rocksdb.csv")
     return leanstore_df, rocksdb_df
             
 def synthesize(path):
@@ -140,7 +140,7 @@ def collect_size_data():
             
     size_df = pd.DataFrame(rows, columns=headers)
     size_df.set_index(params, inplace=True)
-    size_df.to_csv("size_data.csv")
+    size_df.to_csv("synthesis_size.csv")
     return size_df
 
 def process_size_file(path):
