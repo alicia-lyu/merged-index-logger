@@ -6,10 +6,12 @@ DEFAULT_SELECTIVITY = 100
 DEFAULT_COLUMNS = 1
 DEFAULT_UPDATE_SIZE = 5
 
+TX_INDEX_COLS = ["method", "tx", "selectivity", "included_columns", "join", "dram_gib", "target_gib", "update_size"]
+
 def collect_tx_data():
     leanstore_rows = []
     rocksdb_rows = []
-    params = ["method", "tx", "selectivity", "included_columns", "join", "dram_gib", "target_gib", "update_size"]
+    params = TX_INDEX_COLS
     file_identifiers = ["timestamp", "file_path"]
     leanstore_metrics = ["tput", "w_mib", "r_mib", "cycles_per_tx", "utilized_cpus", "cpu_time_per_tx", "ssd_reads_per_tx", "ssd_writes_per_tx"]
     rocksdb_metrics = ["tput", "sst_read_per_tx", "sst_write_per_tx", "cpu_time_per_tx", "utilized_cpus"]
@@ -108,8 +110,10 @@ def synthesize(path):
         utilized_cpus = df["Utilized CPUs"].mean()
         return tput, sst_read_per_tx, sst_write_per_tx, cpu_time_per_tx, utilized_cpus
 
+SIZE_INDEX_COLS = ["method", "storage", "target", "selectivity", "included_columns", "join"]
+
 def collect_size_data():
-    params = ["method", "storage", "target", "selectivity", "included_columns", "join"]
+    params = SIZE_INDEX_COLS
     metrics = ["core_size", "rest_size", "additional_size", "core_time", "rest_time", "additional_time"]
     headers = params + metrics
     rows = []
@@ -181,6 +185,12 @@ def process_size_file(path):
         row = [int(target), int(selectivity), int(included_columns), join, float(core_size), float(rest_size), float(additional_size), int(core_time), int(rest_time), int(additional_time)]
         rows.append(row)
     return rows
+
+def read_collected_data():
+    leanstore_df = pd.read_csv("synthesis_leanstore.csv", index_col=TX_INDEX_COLS)
+    rocksdb_df = pd.read_csv("synthesis_rocksdb.csv", index_col=TX_INDEX_COLS)
+    size_df = pd.read_csv("synthesis_size.csv", index_col=SIZE_INDEX_COLS)
+    return leanstore_df, rocksdb_df, size_df
     
 if __name__ == "__main__":
     collect_tx_data()
