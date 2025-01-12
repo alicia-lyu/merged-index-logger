@@ -1,125 +1,143 @@
-method,storage,target,selectivity,included_columns,join,core_size,rest_size,additional_size,core_time,rest_time,additional_time
-materialized join view,lsm-forest,4,100,1,inner,1.35776,1.0617,0.289895,11195,21655,14623
-materialized join view,lsm-forest,4,50,1,inner,0.678517,0.847717,0.289853,5679,19859,13836
-materialized join view,lsm-forest,4,19,1,inner,0.27164,0.719342,0.289835,2792,19134,14458
-materialized join view,lsm-forest,4,5,1,inner,0.0677064,0.655225,0.289904,1247,18527,14564
-materialized join view,lsm-forest,4,100,1,inner,1.35799,1.06186,0.289824,13485,16735,16614
-materialized join view,lsm-forest,4,100,0,inner,0.0,1.08124,0.274426,11128,17226,16265
-materialized join view,b-tree,4,100,1,inner,2.71198,2.34444,0.432227,0,0,0
-materialized join view,b-tree,4,50,1,inner,1.35551,1.87008,0.432424,0,0,0
-materialized join view,b-tree,4,19,1,inner,0.541478,1.5848,0.432243,0,0,0
-materialized join view,b-tree,4,5,1,inner,0.134996,1.44237,0.432171,0,0,0
-materialized join view,b-tree,4,100,1,inner,2.71251,2.34684,0.432261,2281,6620,2084
-materialized join view,b-tree,4,100,0,inner,0.220796,2.34443,0.120519,0,0,0
-materialized join view,b-tree,4,50,0,inner,0.110254,1.86951,0.120606,714,4333,3034
-materialized join view,b-tree,4,50,0,inner,0.110254,1.86951,0.120606,0,0,0
-materialized join view,b-tree,4,19,0,inner,0.044041,1.58409,0.120564,320,4440,2352
-materialized join view,b-tree,4,19,0,inner,0.044041,1.58409,0.120564,0,0,0
-materialized join view,b-tree,4,5,0,inner,0.0110103,1.44162,0.120587,130,4385,1925
-materialized join view,b-tree,4,5,0,inner,0.0110103,1.44162,0.120587,0,0,0
-materialized join view,b-tree,4,100,0,inner,0.220637,2.34401,0.120348,1382,4436,4234
-materialized join view,b-tree,4,100,0,inner,0.220633,2.34448,0.120829,0,0,0
-materialized join view,b-tree,4,100,1,inner,2.71044,2.34413,0.432564,2310,4539,4027
-materialized join view,b-tree,4,100,1,inner,2.71043,2.34408,0.432027,0,0,0
-materialized join view,b-tree,4,50,1,inner,1.35526,1.86909,0.43219,1268,4502,3306
-materialized join view,b-tree,4,50,1,inner,1.35526,1.86909,0.43219,0,0,0
-materialized join view,b-tree,4,19,1,inner,0.54236,1.58431,0.432137,571,4434,2581
-materialized join view,b-tree,4,19,1,inner,0.54236,1.58431,0.432137,0,0,0
-materialized join view,b-tree,4,5,1,inner,0.135704,1.4418,0.432156,245,4503,2327
-materialized join view,b-tree,4,5,1,inner,0.135704,1.4418,0.432156,0,0,0
-materialized join view,b-tree,4,100,2,inner,1.26292,2.34387,0.432246,1807,4340,4534
-materialized join view,b-tree,4,100,2,inner,1.26289,2.34393,0.43239,0,0,0
-materialized join view,b-tree,4,50,2,inner,0.631468,1.86923,0.431815,940,4336,3197
-materialized join view,b-tree,4,50,2,inner,0.631468,1.86923,0.431815,0,0,0
-materialized join view,b-tree,4,19,2,inner,0.252691,1.58416,0.432038,455,4529,2447
-materialized join view,b-tree,4,19,2,inner,0.252691,1.58416,0.432038,0,0,0
-materialized join view,b-tree,4,5,2,inner,0.0632191,1.44175,0.432129,208,4545,2136
-materialized join view,b-tree,4,5,2,inner,0.0632191,1.44175,0.432129,0,0,0
-materialized join view,b-tree,4,100,1,outer,2.76545,2.34394,0.431751,2296,4358,4033
-materialized join view,b-tree,4,100,1,outer,2.76545,2.34394,0.431751,0,0,0
-materialized join view,b-tree,4,100,0,outer,0.225126,2.34417,0.120507,1367,4337,4228
-materialized join view,b-tree,4,100,0,outer,0.225126,2.34417,0.120507,0,0,0
-materialized join view,b-tree,4,100,2,outer,1.2886,2.34403,0.432349,1949,4506,4575
-materialized join view,b-tree,4,100,2,outer,1.2886,2.34403,0.432349,0,0,0
-traditional indexes,b-tree,4,100,1,inner,1.38171,1.39461,0.0,0,0,0
-traditional indexes,b-tree,4,50,1,inner,0.906827,1.39482,0.0,0,0,0
-traditional indexes,b-tree,4,19,1,inner,0.621703,1.39444,0.0,0,0,0
-traditional indexes,b-tree,4,5,1,inner,0.479599,1.39437,0.0,0,0,0
-traditional indexes,b-tree,4,100,1,inner,1.38153,1.39452,0.0,4100,4367,0
-traditional indexes,b-tree,4,50,0,inner,0.595398,1.39459,0.0,3065,4403,0
-traditional indexes,b-tree,4,50,0,inner,0.595398,1.39459,0.0,0,0,0
-traditional indexes,b-tree,4,19,0,inner,0.310577,1.39457,0.0,2301,4335,0
-traditional indexes,b-tree,4,19,0,inner,0.310577,1.39457,0.0,0,0,0
-traditional indexes,b-tree,4,5,0,inner,0.168121,1.39438,0.0,1942,4477,0
-traditional indexes,b-tree,4,5,0,inner,0.168121,1.39438,0.0,0,0,0
-traditional indexes,b-tree,4,100,0,inner,1.07011,1.39443,0.0,4224,4415,0
-traditional indexes,b-tree,4,100,0,inner,1.07026,1.39433,0.0,0,0,0
-traditional indexes,b-tree,4,100,1,inner,1.38146,1.39464,0.0,4117,4548,0
-traditional indexes,b-tree,4,100,1,inner,1.38222,1.39468,0.0,0,0,0
-traditional indexes,b-tree,4,50,1,inner,0.906217,1.39456,0.0,3118,4531,0
-traditional indexes,b-tree,4,50,1,inner,0.906217,1.39456,0.0,0,0,0
-traditional indexes,b-tree,4,19,1,inner,0.621843,1.3945,0.0,2915,4646,0
-traditional indexes,b-tree,4,19,1,inner,0.621843,1.3945,0.0,0,0,0
-traditional indexes,b-tree,4,5,1,inner,0.479228,1.39473,0.0,2218,4596,0
-traditional indexes,b-tree,4,5,1,inner,0.479228,1.39473,0.0,0,0,0
-traditional indexes,b-tree,4,100,2,inner,1.38195,1.39426,0.0,4584,4482,0
-traditional indexes,b-tree,4,100,2,inner,1.38225,1.39468,0.0,0,0,0
-traditional indexes,b-tree,4,50,2,inner,0.906808,1.39415,0.0,3264,4288,0
-traditional indexes,b-tree,4,50,2,inner,0.906808,1.39415,0.0,0,0,0
-traditional indexes,b-tree,4,19,2,inner,0.621593,1.39466,0.0,2462,4187,0
-traditional indexes,b-tree,4,19,2,inner,0.621593,1.39466,0.0,0,0,0
-traditional indexes,b-tree,4,5,2,inner,0.479285,1.39452,0.0,1873,4227,0
-traditional indexes,b-tree,4,5,2,inner,0.479285,1.39452,0.0,0,0,0
-traditional indexes,b-tree,4,100,1,outer,1.38218,1.39477,0.0,4096,4356,0
-traditional indexes,b-tree,4,100,1,outer,1.38218,1.39477,0.0,0,0,0
-traditional indexes,b-tree,4,100,0,outer,1.06988,1.39452,0.0,4104,4215,0
-traditional indexes,b-tree,4,100,0,outer,1.06988,1.39452,0.0,0,0,0
-traditional indexes,b-tree,4,100,2,outer,1.38164,1.39464,0.0,4389,4181,0
-traditional indexes,b-tree,4,100,2,outer,1.38164,1.39464,0.0,0,0,0
-merged index,lsm-forest,4,100,1,inner,0.717662,0.633867,0.0,18620,18043,0
-merged index,lsm-forest,4,50,1,inner,0.503718,0.633864,0.0,17170,17635,0
-merged index,lsm-forest,4,19,1,inner,0.37617,0.633866,0.0,16031,18827,0
-merged index,lsm-forest,4,5,1,inner,0.311504,0.633867,0.0,14107,17727,0
-merged index,lsm-forest,4,100,1,inner,0.717662,0.633864,0.0,16818,17183,0
-merged index,lsm-forest,4,100,0,inner,0.172949,1.10083,0.0,20891,16673,0
-traditional indexes,lsm-forest,4,100,1,inner,0.69205,0.369813,0.0,17053,18634,0
-traditional indexes,lsm-forest,4,50,1,inner,0.47822,0.36976,0.0,15539,18358,0
-traditional indexes,lsm-forest,4,19,1,inner,0.349854,0.369759,0.0,15441,18602,0
-traditional indexes,lsm-forest,4,5,1,inner,0.285667,0.369759,0.0,13585,17431,0
-traditional indexes,lsm-forest,4,100,1,inner,0.692107,0.369759,0.0,15661,16881,0
-traditional indexes,lsm-forest,4,100,0,inner,0.69521,0.369828,0.0,17457,16883,0
-merged index,b-tree,4,100,1,inner,0.955697,1.39441,0.0,0,0,0
-merged index,b-tree,4,50,1,inner,0.834989,1.39443,0.0,0,0,0
-merged index,b-tree,4,19,1,inner,0.574672,1.39454,0.0,0,0,0
-merged index,b-tree,4,5,1,inner,0.458302,1.3944,0.0,0,0,0
-merged index,b-tree,4,100,1,inner,0.955614,1.39379,0.0,4169,4375,0
-merged index,b-tree,4,50,0,inner,0.132732,1.86941,0.0,3184,4361,0
-merged index,b-tree,4,50,0,inner,0.132732,1.86941,0.0,0,0,0
-merged index,b-tree,4,19,0,inner,0.126291,1.58433,0.0,2268,4481,0
-merged index,b-tree,4,19,0,inner,0.126291,1.58433,0.0,0,0,0
-merged index,b-tree,4,5,0,inner,0.122139,1.44208,0.0,1895,4278,0
-merged index,b-tree,4,5,0,inner,0.122139,1.44208,0.0,0,0,0
-merged index,b-tree,4,100,0,inner,0.147198,2.34417,0.0,4328,4292,0
-merged index,b-tree,4,100,0,inner,0.147153,2.34402,0.0,0,0,0
-merged index,b-tree,4,100,1,inner,0.955928,1.39433,0.0,4074,4337,0
-merged index,b-tree,4,100,1,inner,0.956004,1.39447,0.0,0,0,0
-merged index,b-tree,4,50,1,inner,0.834562,1.39459,0.0,3324,4691,0
-merged index,b-tree,4,50,1,inner,0.834562,1.39459,0.0,0,0,0
-merged index,b-tree,4,19,1,inner,0.57482,1.39422,0.0,2710,4479,0
-merged index,b-tree,4,19,1,inner,0.57482,1.39422,0.0,0,0,0
-merged index,b-tree,4,5,1,inner,0.458567,1.39459,0.0,2156,4380,0
-merged index,b-tree,4,5,1,inner,0.458567,1.39459,0.0,0,0,0
-merged index,b-tree,4,100,2,inner,0.554483,2.34407,0.0,4669,4308,0
-merged index,b-tree,4,100,2,inner,0.553935,2.34426,0.0,0,0,0
-merged index,b-tree,4,50,2,inner,0.528231,1.8691,0.0,3301,4250,0
-merged index,b-tree,4,50,2,inner,0.528231,1.8691,0.0,0,0,0
-merged index,b-tree,4,19,2,inner,0.453752,1.58408,0.0,2443,4311,0
-merged index,b-tree,4,19,2,inner,0.453752,1.58408,0.0,0,0,0
-merged index,b-tree,4,5,2,inner,0.439033,1.44208,0.0,2068,4557,0
-merged index,b-tree,4,5,2,inner,0.439033,1.44208,0.0,0,0,0
-merged index,b-tree,4,100,1,outer,0.955546,1.39457,0.0,3848,4283,0
-merged index,b-tree,4,100,1,outer,0.955546,1.39457,0.0,0,0,0
-merged index,b-tree,4,100,0,outer,0.147145,2.34392,0.0,4392,4410,0
-merged index,b-tree,4,100,0,outer,0.147145,2.34392,0.0,0,0,0
-merged index,b-tree,4,100,2,outer,0.55437,2.3439,0.0,4688,4393,0
-merged index,b-tree,4,100,2,outer,0.55437,2.3439,0.0,0,0,0
+method,storage,target,selectivity,included_columns,join,dram,core_size,rest_size,additional_size,core_time,rest_time,additional_time
+materialized join view,lsm-forest,4,100,1,inner,1,1.35776,1.0617,0.289895,11195,21655,14623
+materialized join view,lsm-forest,4,50,1,inner,1,0.678517,0.847717,0.289853,5679,19859,13836
+materialized join view,lsm-forest,4,19,1,inner,1,0.27164,0.719342,0.289835,2792,19134,14458
+materialized join view,lsm-forest,4,5,1,inner,1,0.0677064,0.655225,0.289904,1247,18527,14564
+materialized join view,lsm-forest,4,100,1,inner,1,1.35799,1.06186,0.289824,13485,16735,16614
+materialized join view,lsm-forest,4,100,0,inner,1,0.0,1.08124,0.274426,11128,17226,16265
+materialized join view,b-tree,4,100,1,inner,1,2.71198,2.34444,0.432227,0,0,0
+materialized join view,b-tree,4,50,1,inner,1,1.35551,1.87008,0.432424,0,0,0
+materialized join view,b-tree,4,19,1,inner,1,0.541478,1.5848,0.432243,0,0,0
+materialized join view,b-tree,4,5,1,inner,1,0.134996,1.44237,0.432171,0,0,0
+materialized join view,b-tree,4,100,1,inner,16,2.71251,2.34684,0.432261,2281,6620,2084
+materialized join view,b-tree,4,100,0,inner,1,0.220796,2.34443,0.120519,0,0,0
+materialized join view,b-tree,4,50,0,inner,16,0.110254,1.86951,0.120606,714,4333,3034
+materialized join view,b-tree,4,50,0,inner,1,0.110254,1.86951,0.120606,0,0,0
+materialized join view,b-tree,4,19,0,inner,16,0.044041,1.58409,0.120564,320,4440,2352
+materialized join view,b-tree,4,19,0,inner,1,0.044041,1.58409,0.120564,0,0,0
+materialized join view,b-tree,4,5,0,inner,16,0.0110103,1.44162,0.120587,130,4385,1925
+materialized join view,b-tree,4,5,0,inner,1,0.0110103,1.44162,0.120587,0,0,0
+materialized join view,b-tree,4,100,0,inner,16,0.220637,2.34401,0.120348,1382,4436,4234
+materialized join view,b-tree,4,100,0,inner,1,0.220633,2.34448,0.120829,0,0,0
+materialized join view,b-tree,4,100,1,inner,16,2.71044,2.34413,0.432564,2310,4539,4027
+materialized join view,b-tree,4,100,1,inner,1,2.71043,2.34408,0.432027,0,0,0
+materialized join view,b-tree,4,50,1,inner,16,1.35526,1.86909,0.43219,1268,4502,3306
+materialized join view,b-tree,4,50,1,inner,1,1.35526,1.86909,0.43219,0,0,0
+materialized join view,b-tree,4,19,1,inner,16,0.54236,1.58431,0.432137,571,4434,2581
+materialized join view,b-tree,4,19,1,inner,1,0.54236,1.58431,0.432137,0,0,0
+materialized join view,b-tree,4,5,1,inner,16,0.135704,1.4418,0.432156,245,4503,2327
+materialized join view,b-tree,4,5,1,inner,1,0.135704,1.4418,0.432156,0,0,0
+materialized join view,b-tree,4,100,2,inner,16,1.26292,2.34387,0.432246,1807,4340,4534
+materialized join view,b-tree,4,100,2,inner,1,1.26289,2.34393,0.43239,0,0,0
+materialized join view,b-tree,4,50,2,inner,16,0.631468,1.86923,0.431815,940,4336,3197
+materialized join view,b-tree,4,50,2,inner,1,0.631468,1.86923,0.431815,0,0,0
+materialized join view,b-tree,4,19,2,inner,16,0.252691,1.58416,0.432038,455,4529,2447
+materialized join view,b-tree,4,19,2,inner,1,0.252691,1.58416,0.432038,0,0,0
+materialized join view,b-tree,4,5,2,inner,16,0.0632191,1.44175,0.432129,208,4545,2136
+materialized join view,b-tree,4,5,2,inner,1,0.0632191,1.44175,0.432129,0,0,0
+materialized join view,b-tree,4,100,1,outer,16,2.76545,2.34394,0.431751,2296,4358,4033
+materialized join view,b-tree,4,100,1,outer,1,2.76545,2.34394,0.431751,0,0,0
+materialized join view,b-tree,4,100,0,outer,16,0.225126,2.34417,0.120507,1367,4337,4228
+materialized join view,b-tree,4,100,0,outer,1,0.225126,2.34417,0.120507,0,0,0
+materialized join view,b-tree,4,100,2,outer,16,1.2886,2.34403,0.432349,1949,4506,4575
+materialized join view,b-tree,4,100,2,outer,1,1.2886,2.34403,0.432349,0,0,0
+traditional indexes,b-tree,4,100,1,inner,1,1.38171,1.39461,0.0,0,0,0
+traditional indexes,b-tree,4,50,1,inner,1,0.906827,1.39482,0.0,0,0,0
+traditional indexes,b-tree,4,19,1,inner,1,0.621703,1.39444,0.0,0,0,0
+traditional indexes,b-tree,4,5,1,inner,1,0.479599,1.39437,0.0,0,0,0
+traditional indexes,b-tree,4,100,1,inner,16,1.38153,1.39452,0.0,4100,4367,0
+traditional indexes,b-tree,4,50,0,inner,16,0.595398,1.39459,0.0,3065,4403,0
+traditional indexes,b-tree,4,50,0,inner,1,0.595398,1.39459,0.0,0,0,0
+traditional indexes,b-tree,4,19,0,inner,16,0.310577,1.39457,0.0,2301,4335,0
+traditional indexes,b-tree,4,19,0,inner,1,0.310577,1.39457,0.0,0,0,0
+traditional indexes,b-tree,4,5,0,inner,16,0.168121,1.39438,0.0,1942,4477,0
+traditional indexes,b-tree,4,5,0,inner,1,0.168121,1.39438,0.0,0,0,0
+traditional indexes,b-tree,4,100,0,inner,16,1.07011,1.39443,0.0,4224,4415,0
+traditional indexes,b-tree,4,100,0,inner,1,1.07026,1.39433,0.0,0,0,0
+traditional indexes,b-tree,4,100,1,inner,16,1.38146,1.39464,0.0,4117,4548,0
+traditional indexes,b-tree,4,100,1,inner,1,1.38222,1.39468,0.0,0,0,0
+traditional indexes,b-tree,4,50,1,inner,16,0.906217,1.39456,0.0,3118,4531,0
+traditional indexes,b-tree,4,50,1,inner,1,0.906217,1.39456,0.0,0,0,0
+traditional indexes,b-tree,4,19,1,inner,16,0.621843,1.3945,0.0,2915,4646,0
+traditional indexes,b-tree,4,19,1,inner,1,0.621843,1.3945,0.0,0,0,0
+traditional indexes,b-tree,4,5,1,inner,16,0.479228,1.39473,0.0,2218,4596,0
+traditional indexes,b-tree,4,5,1,inner,1,0.479228,1.39473,0.0,0,0,0
+traditional indexes,b-tree,4,100,2,inner,16,1.38195,1.39426,0.0,4584,4482,0
+traditional indexes,b-tree,4,100,2,inner,1,1.38225,1.39468,0.0,0,0,0
+traditional indexes,b-tree,4,50,2,inner,16,0.906808,1.39415,0.0,3264,4288,0
+traditional indexes,b-tree,4,50,2,inner,1,0.906808,1.39415,0.0,0,0,0
+traditional indexes,b-tree,4,19,2,inner,16,0.621593,1.39466,0.0,2462,4187,0
+traditional indexes,b-tree,4,19,2,inner,1,0.621593,1.39466,0.0,0,0,0
+traditional indexes,b-tree,4,5,2,inner,16,0.479285,1.39452,0.0,1873,4227,0
+traditional indexes,b-tree,4,5,2,inner,1,0.479285,1.39452,0.0,0,0,0
+traditional indexes,b-tree,4,100,1,outer,16,1.38218,1.39477,0.0,4096,4356,0
+traditional indexes,b-tree,4,100,1,outer,1,1.38218,1.39477,0.0,0,0,0
+traditional indexes,b-tree,4,100,0,outer,16,1.06988,1.39452,0.0,4104,4215,0
+traditional indexes,b-tree,4,100,0,outer,1,1.06988,1.39452,0.0,0,0,0
+traditional indexes,b-tree,4,100,2,outer,16,1.38164,1.39464,0.0,4389,4181,0
+traditional indexes,b-tree,4,100,2,outer,1,1.38164,1.39464,0.0,0,0,0
+merged index,lsm-forest,4,100,1,inner,1,0.717662,0.633867,0.0,18620,18043,0
+merged index,lsm-forest,4,50,1,inner,1,0.503718,0.633864,0.0,17170,17635,0
+merged index,lsm-forest,4,19,1,inner,1,0.37617,0.633866,0.0,16031,18827,0
+merged index,lsm-forest,4,5,1,inner,1,0.311504,0.633867,0.0,14107,17727,0
+merged index,lsm-forest,4,100,1,inner,1,0.717662,0.633864,0.0,16818,17183,0
+merged index,lsm-forest,4,100,0,inner,1,0.172949,1.10083,0.0,20891,16673,0
+traditional indexes,lsm-forest,4,100,1,inner,1,0.69205,0.369813,0.0,17053,18634,0
+traditional indexes,lsm-forest,4,50,1,inner,1,0.47822,0.36976,0.0,15539,18358,0
+traditional indexes,lsm-forest,4,19,1,inner,1,0.349854,0.369759,0.0,15441,18602,0
+traditional indexes,lsm-forest,4,5,1,inner,1,0.285667,0.369759,0.0,13585,17431,0
+traditional indexes,lsm-forest,4,100,1,inner,1,0.692107,0.369759,0.0,15661,16881,0
+traditional indexes,lsm-forest,4,100,0,inner,1,0.69521,0.369828,0.0,17457,16883,0
+merged index,b-tree,4,100,1,inner,1,0.955697,1.39441,0.0,0,0,0
+merged index,b-tree,4,50,1,inner,1,0.834989,1.39443,0.0,0,0,0
+merged index,b-tree,4,19,1,inner,1,0.574672,1.39454,0.0,0,0,0
+merged index,b-tree,4,5,1,inner,1,0.458302,1.3944,0.0,0,0,0
+merged index,b-tree,4,100,1,inner,16,0.955614,1.39379,0.0,4169,4375,0
+merged index,b-tree,4,50,0,inner,16,0.132732,1.86941,0.0,3184,4361,0
+merged index,b-tree,4,50,0,inner,1,0.132732,1.86941,0.0,0,0,0
+merged index,b-tree,4,19,0,inner,16,0.126291,1.58433,0.0,2268,4481,0
+merged index,b-tree,4,19,0,inner,1,0.126291,1.58433,0.0,0,0,0
+merged index,b-tree,4,5,0,inner,16,0.122139,1.44208,0.0,1895,4278,0
+merged index,b-tree,4,5,0,inner,1,0.122139,1.44208,0.0,0,0,0
+merged index,b-tree,4,100,0,inner,16,0.147198,2.34417,0.0,4328,4292,0
+merged index,b-tree,4,100,0,inner,1,0.147153,2.34402,0.0,0,0,0
+merged index,b-tree,4,100,1,inner,16,0.955928,1.39433,0.0,4074,4337,0
+merged index,b-tree,4,100,1,inner,1,0.956004,1.39447,0.0,0,0,0
+merged index,b-tree,4,50,1,inner,16,0.834562,1.39459,0.0,3324,4691,0
+merged index,b-tree,4,50,1,inner,1,0.834562,1.39459,0.0,0,0,0
+merged index,b-tree,4,19,1,inner,16,0.57482,1.39422,0.0,2710,4479,0
+merged index,b-tree,4,19,1,inner,1,0.57482,1.39422,0.0,0,0,0
+merged index,b-tree,4,5,1,inner,16,0.458567,1.39459,0.0,2156,4380,0
+merged index,b-tree,4,5,1,inner,1,0.458567,1.39459,0.0,0,0,0
+merged index,b-tree,4,100,2,inner,16,0.554483,2.34407,0.0,4669,4308,0
+merged index,b-tree,4,100,2,inner,1,0.553935,2.34426,0.0,0,0,0
+merged index,b-tree,4,50,2,inner,16,0.528231,1.8691,0.0,3301,4250,0
+merged index,b-tree,4,50,2,inner,1,0.528231,1.8691,0.0,0,0,0
+merged index,b-tree,4,19,2,inner,16,0.453752,1.58408,0.0,2443,4311,0
+merged index,b-tree,4,19,2,inner,1,0.453752,1.58408,0.0,0,0,0
+merged index,b-tree,4,5,2,inner,16,0.439033,1.44208,0.0,2068,4557,0
+merged index,b-tree,4,5,2,inner,1,0.439033,1.44208,0.0,0,0,0
+merged index,b-tree,4,100,1,outer,16,0.955546,1.39457,0.0,3848,4283,0
+merged index,b-tree,4,100,1,outer,1,0.955546,1.39457,0.0,0,0,0
+merged index,b-tree,4,100,0,outer,16,0.147145,2.34392,0.0,4392,4410,0
+merged index,b-tree,4,100,0,outer,1,0.147145,2.34392,0.0,0,0,0
+merged index,b-tree,4,100,2,outer,16,0.55437,2.3439,0.0,4688,4393,0
+merged index,b-tree,4,100,2,outer,1,0.55437,2.3439,0.0,0,0,0
+materialized join view,b-tree,4,100,2,inner,16,1.26288,2.34448,0.699619,1565,3922,4160
+materialized join view,b-tree,4,100,1,inner,16,2.71038,2.34399,0.431728,2088,4006,3782
+materialized join view,b-tree,4,100,0,inner,16,0.220637,2.34417,0.165665,1304,4004,3755
+merged index,lsm-forest,4,100,2,inner,16,0.408012,1.06186,0.0,34203,21312,0
+merged index,lsm-forest,4,100,1,inner,16,0.717662,0.633865,0.0,27575,19723,0
+merged index,lsm-forest,4,100,0,inner,16,0.0967075,1.0626,0.0,29651,19701,0
+traditional indexes,lsm-forest,4,100,2,inner,16,0.408971,1.06186,0.0,33840,20928,0
+traditional indexes,lsm-forest,4,100,1,inner,16,0.717821,0.633867,0.0,28958,19287,0
+traditional indexes,lsm-forest,4,100,0,inner,16,0.0802513,1.06229,0.0,35862,20179,0
+merged index,b-tree,4,100,2,inner,16,0.554536,2.34391,0.0,4238,4000,0
+merged index,b-tree,4,100,1,inner,16,0.955606,1.39387,0.0,3606,4111,0
+merged index,b-tree,4,100,0,inner,16,0.147134,2.34404,0.0,3979,3958,0
+materialized join view,lsm-forest,4,100,2,inner,16,0.586925,1.06191,0.408865,27283,20340,31472
+materialized join view,lsm-forest,4,100,1,inner,16,1.35799,1.06187,0.289823,34881,19654,24498
+materialized join view,lsm-forest,4,100,0,inner,16,0.0807963,1.06229,0.0802507,30076,19535,33404
+traditional indexes,b-tree,4,100,2,inner,16,0.699528,2.34413,0.0,4167,3913,0
+traditional indexes,b-tree,4,100,1,inner,16,1.38176,1.39475,0.0,3740,4275,0
+traditional indexes,b-tree,4,100,0,inner,16,0.165601,2.34432,0.0,3993,3990,0

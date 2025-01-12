@@ -10,6 +10,7 @@ plt.rcParams["font.stretch"] = 'extra-condensed'
 plt.rcParams["axes.labelweight"] = 600
 plt.rcParams["axes.titleweight"] = 600
 
+COLUMN_LABELS = ["keys", "covering", "all"]
 
 # Constants
 COLORS = {
@@ -57,6 +58,12 @@ def safe_loc(data, indexing_values, column):
     except KeyError as e:
         print(f"KeyError for indexing values {indexing_values}: {e}")
         return 1
+    
+def index_df_storage(storage, method, tx, col="tput"):
+    return safe_loc(leanstore_tx if "lsm" not in storage else rocksdb_tx, get_storage_indexing_values(storage, method, tx), col)
+    
+def index_df_col_sel(included_columns, selectivity, method, tx, col="tput"):
+    return safe_loc(leanstore_tx, get_col_sel_indexing_values(included_columns, selectivity, method, tx), col)
 
 def compute_heatmap(row_values, col_values, value_fn):
     heatmap = np.ones((len(row_values), len(col_values)))
@@ -76,6 +83,13 @@ def compute_heatmap(row_values, col_values, value_fn):
 def get_heatmap_figsize(y_len, x_len):
     return (x_len * 0.6 + 2.5, y_len * 0.6 + 2)
 
+def get_text_func(vmax):
+    if vmax > 1:
+        text_func = lambda t: f"{round(t, 2):.2f}x"
+    else:
+        text_func = lambda t: f"{round(t * 100, 2):.2f}%"
+    return text_func
+
 def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
     im = ax.imshow(heatmap, cmap=cmap, vmin=vmin, vmax=vmax)
     for i in range(len(yticks)):
@@ -83,21 +97,25 @@ def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
     for i in range(len(xticks)):
         ax.axvline(i - 0.5, color="grey", linewidth=0.5)
     # if heatmap <= 8 cells, add text to each cell
-    # if heatmap.size <= 8:
+    text_func = get_text_func(vmax)
+    if heatmap.size <= 9:
         for i in range(len(yticks)):
             for j in range(len(xticks)):
                 # choose color between white and black depending on the background color
                 c = cmap(heatmap[i, j])
-                luminance = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-                if luminance > 0.5:
+                luminance = 0.6 * c[0] + 0.2 * c[1] + 0.3 * c[2]
+                if luminance < 0.5:
                     text_color = "white"
                 else:
                     text_color = "black"
-                ax.text(j, i, f"{round(heatmap[i, j], 2):.2f}x", ha="center", va="center", color=text_color, fontweight="normal")
+                ax.text(j, i, text_func(heatmap[i, j]), ha="center", va="center", color=text_color, fontweight="normal")
     
     ax.set_xticks(range(len(xticks)))
     max_tick_label = max(xticks, key=len)
-    rotation = 0 if (len(max_tick_label) < 5 or "\n" in max_tick_label) else 30
+    # ax_length x axis
+    x_inches = ax.get_position().x1 - ax.get_position().x0
+    print("x_inches", x_inches)
+    rotation = 0 if (len(max_tick_label) < x_inches * 40 or "\n" in max_tick_label) else 30
     ax.set_xticklabels(xticks, rotation=rotation, ha="right" if rotation else "center")
     ax.set_yticks(range(len(yticks)))
     ax.set_yticklabels(yticks)
@@ -112,14 +130,19 @@ def add_colorbar(fig, im, label, orientation=None, location=None, ax=None):
         location = "right" if orientation == "vertical" else "top"
     if ax is None:
         ax = fig.axes
+    if orientation == "vertical":
+        # label as fig title
+        fig.suptitle(label, fontweight="bold")
+        label = None
     bar = fig.colorbar(im, ax=ax, label=label, orientation=orientation, location=location)
     ticks = bar.get_ticks()
     if 1 not in ticks:
         ticks = np.concatenate(([1], ticks))
         ticks.sort()
     last_tick = ticks[-1]
+    text_func = get_text_func(last_tick)
     def format_tick(x, _):
-        s = f"{x * 100:.0f}%"
+        s = text_func(x)
         if x == last_tick and x != 1:
             s += "+"
         return s
@@ -134,62 +157,25 @@ def draw_bars(ax, X, Y, ylabel):
     ax.bar(X, Y, color=COLORS["green"])
     ax.set_xticks(range(len(X)))
     ax.set_xticklabels(X, rotation=30 if rotation else 0, ha="right" if rotation else "center")
-    y_ticks = ax.get_yticks()
-    if 1 not in y_ticks:
-        y_ticks = np.concatenate(([1], y_ticks))
-        y_ticks.sort()
-    ax.set_yticks(y_ticks)
-    ax.set_yticklabels([f"{int(y * 100):d}%" for y in y_ticks])
-    ax.axhline(1, color="black", linewidth=0.5, linestyle="--")
+    # ax.axhline(1, color="black", linewidth=0.5, linestyle="--")
     ax.set_ylabel(ylabel)
-
-# Plot Functions
-# X: in-memory b-tree, disk-based b-tree, LSM
-# Y: v.s. traditional indexes, v.s. materialized join view
-# Z: Speed up in maintenance MergedIndex:BaseTables (bars) 
-# def maintenance():
-#     X = [METHODS[0], METHODS[2]]
-#     heatmap = compute_heatmap(
-#         X, STORAGES,
-#         lambda method, storage: safe_loc(leanstore_tx if "lsm" not in storage else rocksdb_tx, get_storage_indexing_values(storage, METHODS[1], "write"), "tput") / safe_loc(leanstore_tx if "lsm" not in storage else rocksdb_tx, get_storage_indexing_values(storage, method, "write"), "tput")
-#     )
-#     fig, ax = plt.subplots(figsize=get_heatmap_figsize(len(X), len(STORAGES)), constrained_layout=True)
-#     im = draw_heatmap(heatmap, ax, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, [s.replace(" ", "\n").replace("-", "-\n", 1) for s in STORAGES], [x.capitalize().replace(" ", "\n") for x in X], None, "Merged Index vs.")
-#     # reset rotation of x labels
-#     ax.set_xticklabels(ax.get_xticklabels(), rotation=0, ha="center")
-#     add_colorbar(fig, im, "Ratio of Update Throughput\nMerged Index : Either Traditional Option")
-#     fig.savefig("charts/maintenance.png", dpi=300)
-    
-# def maintenance_columns():
-#     X = [METHODS[0], METHODS[2]]
-#     Y = ["none", "selected", "all"]
-#     heatmap = compute_heatmap(
-#         X, [0, 2, 1],
-#         lambda method, column: safe_loc(leanstore_tx, get_col_sel_indexing_values(column, DEFAULT_SELECTIVITY, METHODS[1], "write"), "tput") / safe_loc(leanstore_tx, get_col_sel_indexing_values(column, DEFAULT_SELECTIVITY, method, "write"), "tput")
-#     )
-#     fig, ax = plt.subplots(figsize=get_heatmap_figsize(len(X), len(Y)), constrained_layout=True)
-#     im = draw_heatmap(heatmap, ax, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, Y, [x.capitalize().replace(" ", "\n") for x in X], "Included Columns", "Merged Index vs.")
-#     add_colorbar(fig, im, "Ratio of Update Throughput\nMerged Index : Either Traditional Option")
-#     fig.savefig("charts/maintenance_columns.png", dpi=300)
 
 def maintenance():
     X = [METHODS[0], METHODS[2]]
-    Y1 = STORAGES
-    Y2 = ["none", "selected", "all"]
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3), layout="constrained", sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3), layout="constrained", sharey=True)
     heatmap1 = compute_heatmap(
         X, STORAGES,
-        lambda method, storage: safe_loc(leanstore_tx if "lsm" not in storage else rocksdb_tx, get_storage_indexing_values(storage, METHODS[1], "write"), "tput") / safe_loc(leanstore_tx if "lsm" not in storage else rocksdb_tx, get_storage_indexing_values(storage, method, "write"), "tput")
+        lambda method, storage: index_df_storage(storage, METHODS[1], "write") / index_df_storage(storage, method, "write")
     )
     heatmap2 = compute_heatmap(
         X, [0, 2, 1],
-        lambda method, column: safe_loc(leanstore_tx, get_col_sel_indexing_values(column, DEFAULT_SELECTIVITY, METHODS[1], "write"), "tput") / safe_loc(leanstore_tx, get_col_sel_indexing_values(column, DEFAULT_SELECTIVITY, method, "write"), "tput")
+        lambda method, column: index_df_col_sel(column, DEFAULT_SELECTIVITY, METHODS[1], "write") / index_df_col_sel(column, DEFAULT_SELECTIVITY, method, "write")
     )
     im1 = draw_heatmap(heatmap1, ax1, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, [s.replace(" ", "\n").replace("-", "-\n", 1) for s in STORAGES], [x.capitalize().replace(" ", "\n") for x in X], None, "Merged Index vs.")
-    im2 = draw_heatmap(heatmap2, ax2, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, ["none", "selected", "all"], [x.capitalize().replace(" ", "\n") for x in X], "Included Columns", None)
+    im2 = draw_heatmap(heatmap2, ax2, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, COLUMN_LABELS, [x.capitalize().replace(" ", "\n") for x in X], "Included Columns", None)
+    ax1.set_aspect(0.8)
+    ax2.set_aspect(0.8)
     b, _ = add_colorbar(fig, im1, "Ratio of Update Throughput\nMerged Index : Either Traditional Option")
-    # bar label font size smaller
-    b.ax.yaxis.label.set_fontsize(8)
     fig.savefig("charts/maintenance.png", dpi=300)
 
 def query_heatmaps(baseline):
@@ -197,26 +183,26 @@ def query_heatmaps(baseline):
     col_values = [0, 2, 1]
     heatmap1 = compute_heatmap(
         row_values, col_values,
-        lambda sel, col: safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, METHODS[1], "read-locality"), "tput") /
-        safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, baseline, "read-locality"), "tput")
+        lambda sel, col: index_df_col_sel(col, sel, METHODS[1], "read-locality") /
+        index_df_col_sel(col, sel, baseline, "read-locality")
     )
     heatmap2 = compute_heatmap(
         row_values, col_values,
-        lambda sel, col: safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, METHODS[1], "scan"), "tput") /
-        safe_loc(leanstore_tx, get_col_sel_indexing_values(col, sel, baseline, "scan"), "tput")
+        lambda sel, col: index_df_col_sel(col, sel, METHODS[1], "scan") /
+        index_df_col_sel(col, sel, baseline, "scan")
     )
     tx_values = ["read-locality", "scan"]
     heatmap3 = compute_heatmap(
         STORAGES, tx_values,
-        lambda storage, tx: safe_loc(leanstore_tx, get_storage_indexing_values(storage, METHODS[1], tx), "tput") /
-        safe_loc(leanstore_tx, get_storage_indexing_values(storage, baseline, tx), "tput")
+        lambda storage, tx: index_df_storage(storage, METHODS[1], tx) /
+        index_df_storage(storage, baseline, tx)
     )
     return heatmap1, heatmap2, heatmap3
 
 def draw_query_heatmap(baseline):
     heatmap1, heatmap2, heatmap3 = query_heatmaps(baseline)
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4), layout="constrained")
-    xticks = ["none", "selected", "all"]
+    xticks = COLUMN_LABELS
     yticks = ["Inner Join,\nSO=5%", "Inner Join,\nSO=19%", "Inner Join,\nSO=50%", "Inner Join,\nSO=100%", "Outer Join"]
 
     im1 = draw_heatmap(heatmap1, ax1, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, xticks, yticks, "Included Columns", "Join Type and Join Selectivity")
@@ -234,9 +220,10 @@ def indexing_size_by_storage_col(storage, col, method):
     return (method, storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, col, DEFAULT_JOIN)
 
 def space():
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4), layout="constrained")
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3.5), layout="constrained")
     im1 = space_overhead(ax1)
     im2 = compression_effect(ax2)
+    ax2.set_aspect(0.5)
     add_colorbar(fig, im1, "Size Ratio\nMerged Index : Either Traditional Option")
     fig.savefig("charts/space.png", dpi=300)
 
@@ -253,7 +240,7 @@ def space_overhead(ax):
             safe_loc(size_df, indexing_size_by_storage_col(storage, col, METHODS[1]), "core_size") /
             safe_loc(size_df, indexing_size_by_storage_col(storage, col, METHODS[0]), "core_size")
     )
-    im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, ["none", "selected", "all"], ["b-tree", "lsm-forest"], "Included Columns", None)
+    im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, COLUMN_LABELS, ["b-tree", "lsm-forest"], "Included Columns", None)
     ax.set_title("Merged Index vs.\nTraditional Indexes")
     return im
 
@@ -275,7 +262,7 @@ def compression_effect(ax):
             safe_loc(size_df, indexing_size_by_sel_col(sel, col, METHODS[1]), "core_size") / 
             safe_loc(size_df, indexing_size_by_sel_col(sel, col, METHODS[2]), "core_size")
     )
-    im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, ["none", "selected", "all"], ["Inner Join,\nSO=5%", "Inner Join,\nSO=19%", "Inner Join,\nSO=50%", "Inner Join,\nSO=100%", "Outer Join"], None, "Join Type and Join Selectivity")
+    im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, COLUMN_LABELS, ["Inner Join,\nSO=5%", "Inner Join,\nSO=19%", "Inner Join,\nSO=50%", "Inner Join,\nSO=100%", "Outer Join"], None, "Join Type and Join Selectivity")
     ax.set_title("Merged Index vs.\nMaterialized Join View")
     return im
 
@@ -284,7 +271,7 @@ def compression_effect(ax):
 # - Y: Core, Rest, Additional, stacked bar    
 def size_overview(storage):
     X = [m.capitalize() for m in METHODS]
-    get_index_values = lambda method: (method, storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, DEFAULT_COLUMNS, DEFAULT_JOIN)
+    get_index_values = lambda method: (method, storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, 2, DEFAULT_JOIN) # use selected columns
     
     Y1 = [
         safe_loc(size_df, get_index_values(METHODS[0]), "rest_size"),
@@ -304,16 +291,46 @@ def size_overview(storage):
         safe_loc(size_df, get_index_values(METHODS[2]), "core_size")
     ]
     
-    fig, ax = plt.subplots(figsize=(len(X) * 0.6 + 2, 4), layout="constrained")
+    fig, ax = plt.subplots(figsize=(len(X) * 0.6 + 3, 3), layout="constrained")
     ax.bar(X, Y1, color=COLORS["yellow"], label="Rest of the tables", hatch="////")
     ax.bar(X, Y2, color=COLORS["pink"], label="Additional storage", bottom=Y1, hatch="\\\\\\\\")
-    ax.bar(X, Y3, color=COLORS["blue"], label="Core view or\nstorage structure(s)", bottom=[Y1[i] + Y2[i] for i in range(len(X))])
+    ax.bar(X, Y3, color=COLORS["blue"], label="Core storage structure(s)", bottom=[Y1[i] + Y2[i] for i in range(len(X))])
     ax.set_ylabel("Size (GiB)")
     ax.set_xticks(range(len(X)))
     ax.set_xticklabels([x.replace(" ", "\n") for x in X])
     ax.legend(loc="upper left")
     fig.savefig(f"charts/size_{storage}.png", dpi=300)
 
+def core_time():
+    X = [m.capitalize() for m in METHODS]
+    get_index_values = lambda method: (method, "lsm-forest", DEFAULT_TARGET, DEFAULT_SELECTIVITY, 2, DEFAULT_JOIN)
+    Y1 = [
+        safe_loc(size_df, get_index_values(METHODS[0]), "rest_time"),
+        safe_loc(size_df, get_index_values(METHODS[1]), "rest_time"),
+        safe_loc(size_df, get_index_values(METHODS[2]), "rest_time")
+    ]
+    Y1 = [ y / 1000 for y in Y1 ]
+    Y2 = [
+        safe_loc(size_df, get_index_values(METHODS[0]), "additional_time"),
+        safe_loc(size_df, get_index_values(METHODS[1]), "additional_time"),
+        safe_loc(size_df, get_index_values(METHODS[2]), "additional_time")
+    ]
+    Y2 = [ y / 1000 for y in Y2 ]
+    Y3 = [
+        safe_loc(size_df, get_index_values(METHODS[0]), "core_time"),
+        safe_loc(size_df, get_index_values(METHODS[1]), "core_time"),
+        safe_loc(size_df, get_index_values(METHODS[2]), "core_time")
+    ]
+    Y3 = [ y / 1000 for y in Y3 ]
+    fig, ax = plt.subplots(figsize=(len(X) * 0.6 + 3, 3), layout="constrained")
+    ax.bar(X, Y1, color=COLORS["yellow"], label="Rest of the tables", hatch="////")
+    ax.bar(X, Y2, color=COLORS["pink"], label="Additional storage", bottom=Y1, hatch="\\\\\\\\")
+    ax.bar(X, Y3, color=COLORS["blue"], label="Core storage structure(s)", bottom=[Y1[i] + Y2[i] for i in range(len(X))])
+    ax.set_ylabel("Time (s)")
+    ax.set_xticks(range(len(X)), [x.replace(" ", "\n") for x in X])
+    ax.legend(loc="upper left")
+    fig.savefig("charts/time.png", dpi=300)
+    
 # X: three TX
 # Y: v.s. traditional indexes, v.s. materialized join view
 # Z: Speed up in TX by MergedIndex (heatmap)
@@ -322,28 +339,55 @@ def common_case_heatmap(storage):
     Y = TX_TYPES
     heatmap = compute_heatmap(
         X, TX_TYPES,
-        lambda method, tx: safe_loc(leanstore_tx, get_storage_indexing_values(storage, METHODS[1], tx), "tput") / safe_loc(leanstore_tx, get_storage_indexing_values(storage, method, tx), "tput")
+        lambda method, tx: index_df_storage(storage, METHODS[1], tx) / index_df_storage(storage, method, tx)
     )
     return heatmap
     
 def common_case():
     h1 = common_case_heatmap("b-tree")
     h2 = common_case_heatmap("lsm-forest")
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4), layout="constrained", sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3), layout="constrained", sharey=True)
     X = ['Maintenance\nagainst\nupdates', 'Join query:\npoint lookup', 'Join query:\nrange scan']
     Y = [METHODS[0], METHODS[2]]
     im1 = draw_heatmap(h1, ax1, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, X, [y.capitalize().replace(" ", "\n") for y in Y], None, "Merged Index vs.")
     im2 = draw_heatmap(h2, ax2, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, X, [y.capitalize().replace(" ", "\n") for y in Y], None, None)
     ax1.set_title("b-trees")
     ax2.set_title("lsm-forests")
+    ax1.set_aspect(0.8)
+    ax2.set_aspect(0.8)
     add_colorbar(fig, im1, "Ratio of Throughput\nMerged Index : Either Traditional Option")
     fig.savefig("charts/common_case.png", dpi=300)
 
+def cpu_utilization():
+    X = STORAGES
+    Y = METHODS
+    heatmap_read = compute_heatmap(
+        Y, X,
+        lambda method, storage: index_df_storage(storage, method, "read-locality", "utilized_cpus") / 4
+    )
+    heatmap_scan = compute_heatmap(
+        Y, X,
+        lambda method, storage: index_df_storage(storage, method, "scan", "utilized_cpus") / 4
+    )
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 2.8), layout="constrained", sharey=True)
+    # object version of OrRd colormap
+    cmap = plt.get_cmap("OrRd")
+    im1 = draw_heatmap(heatmap_read, ax1, cmap, 0, 1, [x.replace(" ", "\n") for x in X], [y.capitalize().replace(" ", "\n") for y in Y], None, None)
+    im2 = draw_heatmap(heatmap_scan, ax2, cmap, 0, 1, [x.replace(" ", "\n") for x in X], [y.capitalize().replace(" ", "\n") for y in Y], None, None)
+    add_colorbar(fig, im1, "CPU Utilization\nof Join Queries")
+    # change aspect ratio of heatmap
+    ax1.set_aspect(0.43)
+    ax2.set_aspect(0.43)
+    ax1.set_title("Point Lookup")
+    ax2.set_title("Range Scan")
+    fig.savefig("charts/cpu_utilization.png", dpi=300)
+
 # Execution
 if __name__ == "__main__":
+    cpu_utilization()
+    core_time()
     common_case()
     maintenance()
-    # maintenance_columns()
     draw_query_heatmap(METHODS[0])
     draw_query_heatmap(METHODS[2])
     space()

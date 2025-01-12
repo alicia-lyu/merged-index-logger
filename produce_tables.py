@@ -10,7 +10,7 @@ def get_cpu_utilization():
     for method in METHODS:
         row = []
         for storage in STORAGES:
-            indexing_values = [get_storage_indexing_values(storage, method, tx) for tx in TX_TYPES]
+            indexing_values = [get_storage_indexing_values(storage, method, tx) for tx in ["read-locality", "scan"]]
             all_cpu_data = [safe_loc(rocksdb_tx if storage == STORAGES[2] else leanstore_tx, i, "utilized_cpus") for i in indexing_values]
             all_cpu_utilization = [c/4 for c in all_cpu_data]
             row.append(f"{min(all_cpu_utilization) * 100:.2f}%--{max(all_cpu_utilization) * 100:.2f}%")
