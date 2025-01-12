@@ -77,7 +77,6 @@ def compute_heatmap(row_values, col_values, value_fn):
             elif val == -np.inf:
                 val = RATIO_VMIN
             heatmap[j, i] = val
-    print(heatmap)
     return heatmap
 
 def get_heatmap_figsize(y_len, x_len):
@@ -114,7 +113,6 @@ def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
     max_tick_label = max(xticks, key=len)
     # ax_length x axis
     x_inches = ax.get_position().x1 - ax.get_position().x0
-    print("x_inches", x_inches)
     rotation = 0 if (len(max_tick_label) < x_inches * 40 or "\n" in max_tick_label) else 30
     ax.set_xticklabels(xticks, rotation=rotation, ha="right" if rotation else "center")
     ax.set_yticks(range(len(yticks)))
@@ -157,7 +155,6 @@ def draw_bars(ax, X, Y, ylabel):
     ax.bar(X, Y, color=COLORS["green"])
     ax.set_xticks(range(len(X)))
     ax.set_xticklabels(X, rotation=30 if rotation else 0, ha="right" if rotation else "center")
-    # ax.axhline(1, color="black", linewidth=0.5, linestyle="--")
     ax.set_ylabel(ylabel)
 
 def maintenance():
