@@ -89,7 +89,6 @@ def collect_tx_data():
     return leanstore_df, rocksdb_df
             
 def synthesize(path):
-    print("Synthesizing " + path)
     df = pd.read_csv(path)
     if len(df) < 120:
         raise ValueError("Insufficient data in: ", path, " with length: ", len(df))
