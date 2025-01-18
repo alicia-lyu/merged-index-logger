@@ -77,7 +77,7 @@ def collect_tx_data():
                     tput, w_mib, r_mib, cycles_per_tx, utilized_cpus, cpu_time_per_tx, ssd_reads_per_tx, ssd_writes_per_tx = metrics_data
                     row = [method, tx, selectivity, included_columns, join, dram_gib, target_gib, update_size, timestamp, os.path.join(d, exp, f), tput, w_mib, r_mib, cycles_per_tx, utilized_cpus, cpu_time_per_tx, ssd_reads_per_tx, ssd_writes_per_tx]
             except ValueError as e:
-                print("Error in: ", os.path.join(d, exp, f), " with message: ", e)
+                print("Error in:", os.path.join(d, exp, f), "with message:", e)
                 continue
             rows.append(row)
     leanstore_df = pd.DataFrame(leanstore_rows, columns=leanstore_headers)
@@ -94,22 +94,26 @@ def synthesize(path):
     if len(df) < 120:
         raise ValueError("Insufficient data in: ", path, " with length: ", len(df))
     df = df.tail(len(df) // 2) # Take the last half of the data
-    tput = df["OLTP TX"].mean()
-    if "rocksdb" not in path:
-        w_mib = df["W MiB"].mean()
-        r_mib = df["R MiB"].mean()
-        cycles_per_tx = df["Cycles/TX"].mean()
-        utilized_cpus = df["Utilized CPUs"].mean()
-        cpu_time_per_tx = df["CPUTime/TX (ms)"].mean()
-        ssd_reads_per_tx = df["SSDReads/TX"].mean()
-        ssd_writes_per_tx = df["SSDWrites/TX"].mean()
-        return tput, w_mib, r_mib, cycles_per_tx, utilized_cpus, cpu_time_per_tx, ssd_reads_per_tx, ssd_writes_per_tx
-    else:
-        sst_read_per_tx = df["SSTRead(ms)/TX"].mean()
-        sst_write_per_tx = df["SSTWrite(ms)/TX"].mean()
-        cpu_time_per_tx = df["CPUTime/TX (ms)"].mean()
-        utilized_cpus = df["Utilized CPUs"].mean()
-        return tput, sst_read_per_tx, sst_write_per_tx, cpu_time_per_tx, utilized_cpus
+    try:
+        tput = df["OLTP TX"].mean()
+        if "rocksdb" not in path:
+            w_mib = df["W MiB"].mean()
+            r_mib = df["R MiB"].mean()
+            cycles_per_tx = df["Cycles/TX"].mean()
+            utilized_cpus = df["Utilized CPUs"].mean()
+            cpu_time_per_tx = df["CPUTime/TX (ms)"].mean()
+            ssd_reads_per_tx = df["SSDReads/TX"].mean()
+            ssd_writes_per_tx = df["SSDWrites/TX"].mean()
+            return tput, w_mib, r_mib, cycles_per_tx, utilized_cpus, cpu_time_per_tx, ssd_reads_per_tx, ssd_writes_per_tx
+        else:
+            sst_read_per_tx = df["SSTRead(ms)/TX"].mean()
+            sst_write_per_tx = df["SSTWrite(ms)/TX"].mean()
+            cpu_time_per_tx = df["CPUTime/TX (ms)"].mean()
+            utilized_cpus = df["Utilized CPUs"].mean()
+            return tput, sst_read_per_tx, sst_write_per_tx, cpu_time_per_tx, utilized_cpus
+    except KeyError as e:
+        print("Error in:", path, " with message:", e)
+        raise e
 
 SIZE_INDEX_COLS = ["method", "storage", "target", "selectivity", "included_columns", "join"]
 
