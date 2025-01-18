@@ -39,7 +39,7 @@ def collect_tx_data():
         for exp in os.listdir(d):
             leading_match = re.match(leading_pattern, exp)
             if leading_match is None:
-                print("Ignoring experiment: ", exp)
+                print("Ignoring experiment: ", os.path.join(d, exp))
                 continue
             dram_gib, target_gib, tx = leading_match.groups()
             dram_gib = float(dram_gib)
@@ -89,6 +89,7 @@ def collect_tx_data():
     return leanstore_df, rocksdb_df
             
 def synthesize(path):
+    print("Synthesizing " + path)
     df = pd.read_csv(path)
     if len(df) < 120:
         raise ValueError("Insufficient data in: ", path, " with length: ", len(df))

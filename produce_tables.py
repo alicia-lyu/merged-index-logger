@@ -44,7 +44,6 @@ def csv2textab(csv_fn):
 if __name__ == "__main__":
     fn1 = get_cpu_utilization()
     csv2textab(fn1)
-    csv2textab(fn2)
             
             
             
