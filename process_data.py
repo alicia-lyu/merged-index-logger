@@ -112,6 +112,7 @@ def synthesize(path):
             return tput, sst_read_per_tx, sst_write_per_tx, cpu_time_per_tx, utilized_cpus
     except KeyError as e:
         print("Error in:", path, " with message:", e)
+        print("Columns in file:", df.columns)
         raise e
 
 SIZE_INDEX_COLS = ["method", "storage", "target", "selectivity", "included_columns", "join"]
