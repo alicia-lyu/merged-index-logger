@@ -75,7 +75,7 @@ def compare_storage(storage, method, tx, col="tput"):
     numerator = index_df_storage(storage, METHODS[1], tx, col)
     denominator = index_df_storage(storage, method, tx, col)
     if denominator == 0:
-        return 9.9 # np.inf
+        return 99 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
@@ -88,7 +88,7 @@ def compare_col_sel(included_columns, selectivity, method, tx, col="tput"):
     numerator = index_df_col_sel(included_columns, selectivity, METHODS[1], tx, col)
     denominator = index_df_col_sel(included_columns, selectivity, method, tx, col)
     if denominator == 0:
-        return 9.9 # np.inf
+        return 99 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
@@ -107,9 +107,9 @@ def get_heatmap_figsize(y_len, x_len):
 
 def get_text_func(vmax):
     if vmax > 1:
-        text_func = lambda t: f"{round(t, 2):.2f}x" if t != 9.9 else "∞"
+        text_func = lambda t: f"{round(t, 2):.2f}x" if t != 99 else "∞"
     else:
-        text_func = lambda t: f"{round(t * 100, 2):.2f}%" if t != 9.9 else "∞"
+        text_func = lambda t: f"{round(t * 100, 2):.2f}%" if t != 99 else "∞"
     return text_func
 
 def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
@@ -249,7 +249,7 @@ def compare_size_by_storage_col(storage, col, method, size_col="core_size"):
     numerator = safe_loc(size_df, indexing_size_by_storage_col(storage, col, METHODS[1]), size_col)
     denominator = safe_loc(size_df, indexing_size_by_storage_col(storage, col, method), size_col)
     if denominator == 0:
-        return 9.9 # np.inf
+        return 99 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
@@ -289,7 +289,7 @@ def compare_size_by_sel_col(sel, col, method, size_col="core_size"):
     numerator = indexing_size_by_sel_col(sel, col, METHODS[1], size_col)
     denominator = indexing_size_by_sel_col(sel, col, method, size_col)
     if denominator == 0:
-        return 9.9 # np.inf
+        return 99 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
