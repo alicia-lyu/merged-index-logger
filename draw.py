@@ -336,7 +336,7 @@ def size_overview(storage):
 
 def core_time():
     X = [m.capitalize() for m in METHODS]
-    get_index_values = lambda method: (method, "lsm-forest", DEFAULT_TARGET, DEFAULT_SELECTIVITY, 2, DEFAULT_JOIN, DEFAULT_DRAM)
+    get_index_values = lambda method: (method, "lsm-forest", DEFAULT_TARGET, DEFAULT_SELECTIVITY, 2, DEFAULT_JOIN) # DEFAULT_DRAM)
     Y1 = [
         safe_loc(size_df, get_index_values(METHODS[0]), "rest_time"),
         safe_loc(size_df, get_index_values(METHODS[1]), "rest_time"),
