@@ -69,7 +69,7 @@ def compare_storage(storage, method, tx, col="tput"):
     numerator = index_df_storage(storage, METHODS[1], tx, col)
     denominator = index_df_storage(storage, method, tx, col)
     if denominator == 0:
-        return np.inf
+        return 9.9 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
@@ -82,7 +82,7 @@ def compare_col_sel(included_columns, selectivity, method, tx, col="tput"):
     numerator = index_df_col_sel(included_columns, selectivity, METHODS[1], tx, col)
     denominator = index_df_col_sel(included_columns, selectivity, method, tx, col)
     if denominator == 0:
-        return np.inf
+        return 9.9 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
@@ -101,9 +101,9 @@ def get_heatmap_figsize(y_len, x_len):
 
 def get_text_func(vmax):
     if vmax > 1:
-        text_func = lambda t: f"{round(t, 2):.2f}x"
+        text_func = lambda t: f"{round(t, 2):.2f}x" if t != 9.9 else "∞"
     else:
-        text_func = lambda t: f"{round(t * 100, 2):.2f}%"
+        text_func = lambda t: f"{round(t * 100, 2):.2f}%" if t != 9.9 else "∞"
     return text_func
 
 def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
@@ -120,6 +120,11 @@ def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
                 v = heatmap[i, j]
                 if np.isnan(v):
                     print(f"NaN value for cell ({i}, {j})")
+                    continue
+                elif np.isinf(v):
+                    print(f"Infinite value for cell ({i}, {j})")
+                    text = "∞" if v > 0 else "-∞"
+                    ax.text(j, i, text, ha="center", va="center", color="black", fontweight="normal")
                     continue
                 # choose color between white and black depending on the background color
                 c = cmap(v)
@@ -238,7 +243,7 @@ def compare_size_by_storage_col(storage, col, method, size_col="core_size"):
     numerator = safe_loc(size_df, indexing_size_by_storage_col(storage, col, METHODS[1]), size_col)
     denominator = safe_loc(size_df, indexing_size_by_storage_col(storage, col, method), size_col)
     if denominator == 0:
-        return np.inf
+        return 9.9 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
@@ -278,7 +283,7 @@ def compare_size_by_sel_col(sel, col, method, size_col="core_size"):
     numerator = indexing_size_by_sel_col(sel, col, METHODS[1], size_col)
     denominator = indexing_size_by_sel_col(sel, col, method, size_col)
     if denominator == 0:
-        return np.inf
+        return 9.9 # np.inf
     elif np.isnan(numerator) or np.isnan(denominator):
         return np.nan
     else:
