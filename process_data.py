@@ -1,5 +1,6 @@
 import os, re
 import pandas as pd
+import numpy as np
 from collections import defaultdict
 
 DEFAULT_SELECTIVITY = 100
@@ -93,27 +94,31 @@ def synthesize(path):
     if len(df) < 120:
         raise ValueError("Insufficient data in: ", path, " with length: ", len(df))
     df = df.tail(len(df) // 2) # Take the last half of the data
-    try:
-        tput = df["OLTP TX"].mean()
-        if "rocksdb" not in path:
-            w_mib = df["W MiB"].mean()
-            r_mib = df["R MiB"].mean()
-            cycles_per_tx = df["Cycles/TX"].mean()
-            utilized_cpus = df["Utilized CPUs"].mean()
-            cpu_time_per_tx = df["CPUTime/TX (ms)"].mean()
-            ssd_reads_per_tx = df["SSDReads/TX"].mean()
-            ssd_writes_per_tx = df["SSDWrites/TX"].mean()
-            return tput, w_mib, r_mib, cycles_per_tx, utilized_cpus, cpu_time_per_tx, ssd_reads_per_tx, ssd_writes_per_tx
-        else:
-            sst_read_per_tx = df["SSTRead(ms)/TX"].mean()
-            sst_write_per_tx = df["SSTWrite(ms)/TX"].mean()
-            cpu_time_per_tx = df["CPUTime/TX (ms)"].mean()
-            utilized_cpus = df["Utilized CPUs"].mean()
-            return tput, sst_read_per_tx, sst_write_per_tx, cpu_time_per_tx, utilized_cpus
-    except KeyError as e:
-        print("Error in:", path, " with message:", e)
-        print("Columns in file:", df.columns)
-        raise e
+    
+    def safe_index_mean(col):
+        nonlocal df
+        try:
+            return df[col].mean()
+        except KeyError as e:
+            print("KeyError with column:", col, "in file:", path, ". Message:", e)
+            return np.nan
+        
+    tput = safe_index_mean("OLTP TX")
+    if "rocksdb" not in path:
+        w_mib = safe_index_mean("W MiB")
+        r_mib = safe_index_mean("R MiB")
+        cycles_per_tx = safe_index_mean("Cycles/TX")
+        utilized_cpus = safe_index_mean("Utilized CPUs")
+        cpu_time_per_tx = safe_index_mean("CPUTime/TX (ms)")
+        ssd_reads_per_tx = safe_index_mean("SSDReads/TX")
+        ssd_writes_per_tx = safe_index_mean("SSDWrites/TX")
+        return tput, w_mib, r_mib, cycles_per_tx, utilized_cpus, cpu_time_per_tx, ssd_reads_per_tx, ssd_writes_per_tx
+    else:
+        sst_read_per_tx = safe_index_mean("SSTRead(ms)/TX")
+        sst_write_per_tx = safe_index_mean("SSTWrite(ms)/TX")
+        cpu_time_per_tx = safe_index_mean("CPUTime/TX (ms)")
+        utilized_cpus = safe_index_mean("Utilized CPUs")
+        return tput, sst_read_per_tx, sst_write_per_tx, cpu_time_per_tx, utilized_cpus
 
 SIZE_INDEX_COLS = ["method", "storage", "target", "selectivity", "included_columns", "join"]
 
@@ -165,10 +170,6 @@ def process_size_file(path):
     rows = []
     for config, tables in size_dir.items():
         configs = config.split("|")
-        # if len(configs) == 5 and configs[-1] == 1:
-        #     join = "outer"
-        # else:
-        #     join = "inner"
         if "outer" in path:
             join = "outer"
         else:

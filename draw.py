@@ -52,25 +52,48 @@ def safe_loc(data, indexing_values, column):
     try:
         result = data.loc[indexing_values, column]
         if isinstance(result, np.float64):
-            return result
+            v = result
         else:
-            return result.iloc[-1]
+            v = result.iloc[-1]
+        if np.isnan(v):
+            print(f"NaN value for indexing with {indexing_values} on column {column}")
+        return v
     except KeyError as e:
-        print(f"KeyError for indexing values {indexing_values}: {e}")
-        return 1
+        print(f"KeyError for indexing with {indexing_values} on column {column}: {e}")
+        return np.nan
     
 def index_df_storage(storage, method, tx, col="tput"):
     return safe_loc(leanstore_tx if "lsm" not in storage else rocksdb_tx, get_storage_indexing_values(storage, method, tx), col)
+
+def compare_storage(storage, method, tx, col="tput"):
+    numerator = index_df_storage(storage, METHODS[1], tx, col)
+    denominator = index_df_storage(storage, method, tx, col)
+    if denominator == 0:
+        return np.inf
+    elif np.isnan(numerator) or np.isnan(denominator):
+        return np.nan
+    else:
+        return numerator / denominator
     
 def index_df_col_sel(included_columns, selectivity, method, tx, col="tput"):
     return safe_loc(leanstore_tx, get_col_sel_indexing_values(included_columns, selectivity, method, tx), col)
+
+def compare_col_sel(included_columns, selectivity, method, tx, col="tput"):
+    numerator = index_df_col_sel(included_columns, selectivity, METHODS[1], tx, col)
+    denominator = index_df_col_sel(included_columns, selectivity, method, tx, col)
+    if denominator == 0:
+        return np.inf
+    elif np.isnan(numerator) or np.isnan(denominator):
+        return np.nan
+    else:
+        return numerator / denominator
 
 def compute_heatmap(row_values, col_values, value_fn):
     heatmap = np.ones((len(row_values), len(col_values)))
     for i, col_val in enumerate(col_values):
         for j, row_val in enumerate(row_values):
             val = value_fn(row_val, col_val)
-            if val is np.nan or val is None:
+            if np.isnan(val) or val is None:
                 val = 1
             elif val == np.inf:
                 val = RATIO_VMAX
@@ -100,8 +123,11 @@ def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
     if heatmap.size <= 9:
         for i in range(len(yticks)):
             for j in range(len(xticks)):
+                v = heatmap[i, j]
+                if np.isnan(v):
+                    continue
                 # choose color between white and black depending on the background color
-                c = cmap(heatmap[i, j])
+                c = cmap(v)
                 luminance = 0.6 * c[0] + 0.2 * c[1] + 0.3 * c[2]
                 if luminance < 0.5:
                     text_color = "white"
@@ -162,11 +188,11 @@ def maintenance():
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3), layout="constrained", sharey=True)
     heatmap1 = compute_heatmap(
         X, STORAGES,
-        lambda method, storage: index_df_storage(storage, METHODS[1], "write") / index_df_storage(storage, method, "write")
+        lambda method, storage: compare_storage(storage, method, "write")
     )
     heatmap2 = compute_heatmap(
         X, [0, 2, 1],
-        lambda method, column: index_df_col_sel(column, DEFAULT_SELECTIVITY, METHODS[1], "write") / index_df_col_sel(column, DEFAULT_SELECTIVITY, method, "write")
+        lambda method, column: compare_col_sel(column, DEFAULT_SELECTIVITY, method, "write")
     )
     im1 = draw_heatmap(heatmap1, ax1, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, [s.replace(" ", "\n").replace("-", "-\n", 1) for s in STORAGES], [x.capitalize().replace(" ", "\n") for x in X], None, "Merged Index vs.")
     im2 = draw_heatmap(heatmap2, ax2, QUERY_CMAP, RATIO_VMIN, RATIO_VMAX, COLUMN_LABELS, [x.capitalize().replace(" ", "\n") for x in X], "Included Columns", None)
@@ -180,19 +206,16 @@ def query_heatmaps(baseline):
     col_values = [0, 2, 1]
     heatmap1 = compute_heatmap(
         row_values, col_values,
-        lambda sel, col: index_df_col_sel(col, sel, METHODS[1], "read-locality") /
-        index_df_col_sel(col, sel, baseline, "read-locality")
+        lambda sel, col: compare_col_sel(col, sel, baseline, "read-locality")
     )
     heatmap2 = compute_heatmap(
         row_values, col_values,
-        lambda sel, col: index_df_col_sel(col, sel, METHODS[1], "scan") /
-        index_df_col_sel(col, sel, baseline, "scan")
+        lambda sel, col: compare_col_sel(col, sel, baseline, "scan")
     )
     tx_values = ["read-locality", "scan"]
     heatmap3 = compute_heatmap(
         STORAGES, tx_values,
-        lambda storage, tx: index_df_storage(storage, METHODS[1], tx) /
-        index_df_storage(storage, baseline, tx)
+        lambda storage, tx: compare_storage(storage, baseline, tx)
     )
     return heatmap1, heatmap2, heatmap3
 
@@ -216,6 +239,16 @@ def draw_query_heatmap(baseline):
 def indexing_size_by_storage_col(storage, col, method):
     return (method, storage, DEFAULT_TARGET, DEFAULT_SELECTIVITY, col, DEFAULT_JOIN)
 
+def compare_size_by_storage_col(storage, col, method, size_col="core_size"):
+    numerator = safe_loc(size_df, indexing_size_by_storage_col(storage, col, METHODS[1]), size_col)
+    denominator = safe_loc(size_df, indexing_size_by_storage_col(storage, col, method), size_col)
+    if denominator == 0:
+        return np.inf
+    elif np.isnan(numerator) or np.isnan(denominator):
+        return np.nan
+    else:
+        return numerator / denominator
+
 def space():
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3.5), layout="constrained")
     im1 = space_overhead(ax1)
@@ -234,17 +267,27 @@ def space_overhead(ax):
     heatmap = compute_heatmap(
         row_values, col_values,
         lambda storage, col: 
-            safe_loc(size_df, indexing_size_by_storage_col(storage, col, METHODS[1]), "core_size") /
-            safe_loc(size_df, indexing_size_by_storage_col(storage, col, METHODS[0]), "core_size")
+            compare_size_by_storage_col(storage, col, METHODS[0], "core_size")
     )
     im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, COLUMN_LABELS, ["b-tree", "lsm-forest"], "Included Columns", None)
     ax.set_title("Merged Index vs.\nTraditional Indexes")
     return im
 
-def indexing_size_by_sel_col(sel, col, method):
+def indexing_size_by_sel_col(sel, col, method, size_col="core_size"):
     join_type = "outer" if sel == "outer" else DEFAULT_JOIN
     sel = DEFAULT_SELECTIVITY if sel == "outer" else sel
-    return (method, "b-tree", DEFAULT_TARGET, sel, col, join_type)
+    index_columns = (method, "b-tree", DEFAULT_TARGET, sel, col, join_type)
+    return safe_loc(size_df, index_columns, size_col)
+
+def compare_size_by_sel_col(sel, col, method, size_col="core_size"):
+    numerator = indexing_size_by_sel_col(sel, col, METHODS[1], size_col)
+    denominator = indexing_size_by_sel_col(sel, col, method, size_col)
+    if denominator == 0:
+        return np.inf
+    elif np.isnan(numerator) or np.isnan(denominator):
+        return np.nan
+    else:
+        return numerator / denominator
 
 # Fig 3.2: Compression effect heat map blue-orange
 # - X: included columns (none, selected, all)
@@ -255,9 +298,7 @@ def compression_effect(ax):
     col_values = [0, 2, 1]
     heatmap = compute_heatmap(
         row_values, col_values,
-        lambda sel, col: 
-            safe_loc(size_df, indexing_size_by_sel_col(sel, col, METHODS[1]), "core_size") / 
-            safe_loc(size_df, indexing_size_by_sel_col(sel, col, METHODS[2]), "core_size")
+        lambda sel, col: compare_size_by_sel_col(sel, col, METHODS[2], "core_size")
     )
     im = draw_heatmap(heatmap, ax, SIZE_CMAP, RATIO_VMIN, RATIO_VMAX, COLUMN_LABELS, ["Inner Join,\nSO=5%", "Inner Join,\nSO=19%", "Inner Join,\nSO=50%", "Inner Join,\nSO=100%", "Outer Join"], None, "Join Type and Join Selectivity")
     ax.set_title("Merged Index vs.\nMaterialized Join View")
@@ -336,7 +377,7 @@ def common_case_heatmap(storage):
     Y = TX_TYPES
     heatmap = compute_heatmap(
         X, TX_TYPES,
-        lambda method, tx: index_df_storage(storage, METHODS[1], tx) / index_df_storage(storage, method, tx)
+        lambda method, tx: compare_storage(storage, method, tx)
     )
     return heatmap
     
