@@ -25,7 +25,7 @@ METHODS = ["traditional indexes", "merged index", "materialized join view"]
 STORAGES = ["memory-resident b-tree", "disk-resident b-tree", "lsm-forest"]
 TX_TYPES = ["write", "read-locality", "scan"]
 DEFAULT_JOIN = "inner"
-DEFAULT_DRAM = 1
+DEFAULT_DRAM = 1.0
 DEFAULT_TARGET = 4
 RATIO_VMIN = 0
 RATIO_VMAX = 2
@@ -40,7 +40,7 @@ leanstore_tx, rocksdb_tx, size_df = read_collected_data()
 def get_storage_indexing_values(storage, method, tx):
     common_values = (method, tx, DEFAULT_SELECTIVITY, DEFAULT_COLUMNS, DEFAULT_JOIN, DEFAULT_DRAM, DEFAULT_TARGET, DEFAULT_UPDATE_SIZE)
     if storage == STORAGES[0]:
-        return (method, tx, DEFAULT_SELECTIVITY, DEFAULT_COLUMNS, DEFAULT_JOIN, 16, DEFAULT_TARGET, DEFAULT_UPDATE_SIZE)
+        return (method, tx, DEFAULT_SELECTIVITY, DEFAULT_COLUMNS, DEFAULT_JOIN, 16.0, DEFAULT_TARGET, DEFAULT_UPDATE_SIZE)
     return common_values
 
 def get_col_sel_indexing_values(included_columns, selectivity, method, tx):
