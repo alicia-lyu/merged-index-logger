@@ -227,7 +227,7 @@ def process_size_file(path):
                 additional_time = t
         try:
             row = [
-                int(target), int(selectivity), int(included_columns), join, dram,
+                int(target), int(selectivity), int(included_columns), join, float(dram),
                 float(core_size), float(rest_size), float(additional_size),
                 int(core_time), int(rest_time), int(additional_time)
             ]
