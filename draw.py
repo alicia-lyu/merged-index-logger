@@ -93,12 +93,6 @@ def compute_heatmap(row_values, col_values, value_fn):
     for i, col_val in enumerate(col_values):
         for j, row_val in enumerate(row_values):
             val = value_fn(row_val, col_val)
-            if np.isnan(val) or val is None:
-                val = 1
-            elif val == np.inf:
-                val = RATIO_VMAX
-            elif val == -np.inf:
-                val = RATIO_VMIN
             heatmap[j, i] = val
     return heatmap
 
@@ -125,6 +119,7 @@ def draw_heatmap(heatmap, ax, cmap, vmin, vmax, xticks, yticks, xlabel, ylabel):
             for j in range(len(xticks)):
                 v = heatmap[i, j]
                 if np.isnan(v):
+                    print(f"NaN value for cell ({i}, {j})")
                     continue
                 # choose color between white and black depending on the background color
                 c = cmap(v)
