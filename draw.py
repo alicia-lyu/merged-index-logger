@@ -35,6 +35,12 @@ DEFAULT_COLUMNS = 1 # 2
 
 # Data Collection
 leanstore_tx, rocksdb_tx, size_df = read_collected_data()
+# simulate missing data
+# leanstore_tx['cycles_per_tx'] = np.nan
+# leanstore_tx['utilized_cpus'] = np.nan
+# leanstore_tx['cpu_time_per_tx'] = np.nan
+# rocksdb_tx['cpu_time_per_tx'] = np.nan
+# rocksdb_tx['utilized_cpus'] = np.nan
 
 # Helper Functions
 def get_storage_indexing_values(storage, method, tx):
