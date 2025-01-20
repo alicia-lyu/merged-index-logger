@@ -135,7 +135,7 @@ def synthesize(path):
                 safe_index_mean("CPUTime/TX (ms)"),
                 safe_index_mean("Utilized CPUs"))
 
-SIZE_INDEX_COLS = ["method", "storage", "target", "selectivity", "included_columns", "join"]
+SIZE_INDEX_COLS = ["method", "storage", "target", "selectivity", "included_columns", "join", "dram"]
 
 def collect_size_data():
     print("Starting collect_size_data()")
@@ -210,7 +210,7 @@ def process_size_file(path):
         else:
             join = "inner"
 
-        _, target, selectivity, included_columns = configs[:4]
+        dram, target, selectivity, included_columns = configs[:4]
         additional_time = 0
         additional_size = 0
 
@@ -227,7 +227,7 @@ def process_size_file(path):
                 additional_time = t
         try:
             row = [
-                int(target), int(selectivity), int(included_columns), join,
+                int(target), int(selectivity), int(included_columns), join, dram,
                 float(core_size), float(rest_size), float(additional_size),
                 int(core_time), int(rest_time), int(additional_time)
             ]
